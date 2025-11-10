@@ -696,7 +696,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
                         value: 'promote',
                         child: Row(
                           children: [
-                            Icon(Iconsax.crown, size: 16),
+                            Icon(Icons.star, size: 16),
                             SizedBox(width: 8),
                             Text('Promote to Super Admin'),
                           ],

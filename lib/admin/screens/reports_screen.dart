@@ -666,28 +666,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Invoice Header - Enhanced Design with Logo
+        // Invoice Header
         Container(
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColor.primary,
-                AppColor.primary.withAlpha(217),
-                AppColor.primary.withAlpha(204),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppColor.primary.withAlpha(77),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-                spreadRadius: 2,
-              ),
-            ],
+            color: AppColor.primary,
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -697,18 +681,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(51),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.white.withAlpha(77),
-                          width: 2,
-                        ),
+                        color: Colors.white.withAlpha(32),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(Iconsax.flash, color: Colors.white, size: 32),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -718,25 +698,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             style: ResponsiveText.headline(context).copyWith(
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
-                              fontSize: 32,
-                              letterSpacing: 0.5,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black.withAlpha(51),
-                                  offset: const Offset(0, 2),
-                                  blurRadius: 4,
-                                ),
-                              ],
+                              fontSize: 26,
+                              letterSpacing: 0.3,
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
                           Text(
                             'Energy Consumption Invoice',
                             style: ResponsiveText.body(context).copyWith(
-                              color: Colors.white.withAlpha(242),
-                              fontSize: 15,
+                              color: Colors.white.withAlpha(230),
+                              fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              letterSpacing: 0.3,
                             ),
                           ),
                         ],
@@ -750,47 +722,32 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
+                      horizontal: 12,
+                      vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(64),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Colors.white.withAlpha(102),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withAlpha(26),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      color: Colors.white.withAlpha(48),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
                       'INVOICE',
                       style: ResponsiveText.body(context).copyWith(
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                        fontSize: 13,
-                        letterSpacing: 1.5,
+                        fontSize: 12,
+                        letterSpacing: 1.2,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
+                      horizontal: 14,
+                      vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(38),
+                      color: Colors.white.withAlpha(30),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Colors.white.withAlpha(77),
-                        width: 1,
-                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -798,8 +755,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         Text(
                           'Invoice #:',
                           style: ResponsiveText.caption(context).copyWith(
-                            color: Colors.white.withAlpha(204),
-                            fontSize: 11,
+                            color: Colors.white.withAlpha(210),
+                            fontSize: 10,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -808,15 +765,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           style: ResponsiveText.body(context).copyWith(
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
-                            fontSize: 15,
+                            fontSize: 14,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
                           'Date: ${_formatDate(invoiceDate)}',
                           style: ResponsiveText.caption(context).copyWith(
-                            color: Colors.white.withAlpha(230),
-                            fontSize: 12,
+                            color: Colors.white.withAlpha(220),
+                            fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -828,9 +785,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
 
-        // Customer Information - Enhanced Card Design
+        // Customer Information
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -842,26 +799,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     'Bill To:',
                     style: ResponsiveText.title(
                       context,
-                    ).copyWith(fontWeight: FontWeight.bold, fontSize: 18),
+                    ).copyWith(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade300, width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withAlpha(20),
-                          blurRadius: 15,
-                          offset: const Offset(0, 4),
-                          spreadRadius: 1,
-                        ),
-                        BoxShadow(
-                          color: AppColor.primary.withAlpha(13),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
+                          color: Colors.black.withAlpha(12),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
@@ -896,9 +847,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         const Divider(height: 1, thickness: 1),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         if ((customer['email'] as String?)?.isNotEmpty ??
                             false) ...[
                           _buildCustomerInfoRow('Email', customer['email']),
@@ -947,7 +898,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ],
               ),
             ),
-            const SizedBox(width: 24),
+            const SizedBox(width: 20),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -956,25 +907,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     'Billing Period:',
                     style: ResponsiveText.title(
                       context,
-                    ).copyWith(fontWeight: FontWeight.bold, fontSize: 18),
+                    ).copyWith(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.grey.shade300,
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withAlpha(13),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      border: Border.all(color: Colors.grey.shade300),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -993,58 +937,37 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
 
-        // Today's Usage Section - Enhanced Design
+        // Today's Usage Section
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColor.primary.withAlpha(26),
+                color: AppColor.primary.withAlpha(18),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(Iconsax.flash, color: AppColor.primary, size: 24),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Text(
               "Today's Usage",
               style: ResponsiveText.title(context).copyWith(
                 fontWeight: FontWeight.bold,
-                fontSize: 20,
+                fontSize: 18,
                 letterSpacing: 0.3,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 14),
         Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColor.primary.withAlpha(31),
-                AppColor.primary.withAlpha(15),
-                AppColor.primary.withAlpha(10),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColor.primary.withAlpha(77), width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: AppColor.primary.withAlpha(38),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
-                spreadRadius: 1,
-              ),
-              BoxShadow(
-                color: Colors.black.withAlpha(13),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
           ),
           child: Column(
             children: [
@@ -1092,16 +1015,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
 
         // Appliances Summary Table
         if (appliances.isNotEmpty) ...[
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColor.accentGreen.withAlpha(26),
+                  color: AppColor.accentGreen.withAlpha(18),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -1110,36 +1033,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   size: 24,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Text(
                 'Appliances Summary',
                 style: ResponsiveText.title(context).copyWith(
                   fontWeight: FontWeight.bold,
-                  fontSize: 20,
+                  fontSize: 18,
                   letterSpacing: 0.3,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade300, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(20),
-                  blurRadius: 15,
-                  offset: const Offset(0, 4),
-                  spreadRadius: 1,
-                ),
-                BoxShadow(
-                  color: AppColor.accentGreen.withAlpha(13),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
             ),
             child: Table(
               border: TableBorder(
@@ -1208,15 +1118,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
 
           // Appliances Breakdown - Enhanced Table
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColor.primary.withAlpha(26),
+                  color: AppColor.primary.withAlpha(18),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -1225,36 +1135,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   size: 24,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Text(
                 'Appliances Breakdown',
                 style: ResponsiveText.title(context).copyWith(
                   fontWeight: FontWeight.bold,
-                  fontSize: 20,
+                  fontSize: 18,
                   letterSpacing: 0.3,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade300, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(20),
-                  blurRadius: 15,
-                  offset: const Offset(0, 4),
-                  spreadRadius: 1,
-                ),
-                BoxShadow(
-                  color: AppColor.primary.withAlpha(13),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
             ),
             child: Table(
               border: TableBorder(
@@ -1347,40 +1244,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
         ],
 
-        // Energy Summary - Enhanced Design
+        // Energy Summary
         Container(
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColor.accentGreen.withAlpha(46),
-                AppColor.accentGreen.withAlpha(31),
-                AppColor.accentGreen.withAlpha(20),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppColor.accentGreen.withAlpha(128),
-              width: 2.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColor.accentGreen.withAlpha(64),
-                blurRadius: 25,
-                offset: const Offset(0, 6),
-                spreadRadius: 2,
-              ),
-              BoxShadow(
-                color: Colors.black.withAlpha(20),
-                blurRadius: 15,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColor.accentGreen.withAlpha(64)),
           ),
           child: Column(
             children: [
@@ -1420,33 +1293,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              const Divider(
+              Divider(
                 height: 1,
-                thickness: 2,
-                color: AppColor.accentGreen,
+                thickness: 1.5,
+                color: AppColor.accentGreen.withAlpha(128),
               ),
               const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 20,
+                  horizontal: 18,
+                  vertical: 16,
                 ),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColor.accentGreen,
-                      AppColor.accentGreen.withAlpha(230),
-                    ],
-                  ),
+                  color: AppColor.accentGreen,
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColor.accentGreen.withAlpha(102),
-                      blurRadius: 15,
-                      offset: const Offset(0, 4),
-                      spreadRadius: 1,
-                    ),
-                  ],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1456,8 +1316,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       style: ResponsiveText.title(context).copyWith(
                         fontWeight: FontWeight.w900,
                         color: Colors.white,
-                        fontSize: 22,
-                        letterSpacing: 0.5,
+                        fontSize: 20,
+                        letterSpacing: 0.3,
                       ),
                     ),
                     Text(
@@ -1465,8 +1325,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       style: ResponsiveText.title(context).copyWith(
                         fontWeight: FontWeight.w900,
                         color: Colors.white,
-                        fontSize: 28,
-                        letterSpacing: 0.5,
+                        fontSize: 24,
+                        letterSpacing: 0.4,
                       ),
                     ),
                   ],
@@ -1475,11 +1335,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
 
         // Footer - Enhanced Design
         Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
           decoration: BoxDecoration(
             color: Colors.grey.shade50,
             borderRadius: BorderRadius.circular(12),
@@ -1645,6 +1505,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
         totalAppliancesCost += (app['cost'] as double? ?? 0.0);
       }
 
+      final applianceItems = appliances
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
+      final displayedAppliances =
+          applianceItems.length > 8
+              ? applianceItems.sublist(0, 8)
+              : applianceItems;
+      final hasMoreAppliances =
+          applianceItems.length > displayedAppliances.length;
+
       // Create PDF document
       final pdf = pw.Document();
 
@@ -1652,22 +1522,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(40),
+          margin: const pw.EdgeInsets.symmetric(horizontal: 32, vertical: 28),
           theme: pdfTheme,
           build: (pw.Context context) {
             return [
               // Header - Enhanced Design with Logo
               pw.Container(
-                padding: const pw.EdgeInsets.all(24),
+                padding: const pw.EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
                 decoration: pw.BoxDecoration(
-                  gradient: pw.LinearGradient(
-                    colors: [
-                      PdfColors.blue700,
-                      PdfColors.blue600,
-                      PdfColors.blue700,
-                    ],
-                  ),
-                  borderRadius: pw.BorderRadius.circular(12),
+                  color: PdfColors.blueGrey800,
+                  borderRadius: pw.BorderRadius.circular(10),
                 ),
                 child: pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -1677,18 +1544,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       child: pw.Row(
                         children: [
                           pw.Container(
-                            padding: const pw.EdgeInsets.all(10),
+                            padding: const pw.EdgeInsets.all(8),
                             decoration: pw.BoxDecoration(
-                              color: PdfColors.grey300,
-                              borderRadius: pw.BorderRadius.circular(10),
-                              border: pw.Border.all(
-                                color: PdfColors.grey400,
-                                width: 2,
-                              ),
+                              color: PdfColors.grey200,
+                              borderRadius: pw.BorderRadius.circular(8),
                             ),
-                            child: pw.Image(logoImage, width: 40, height: 40),
+                            child: pw.Image(logoImage, width: 36, height: 36),
                           ),
-                          pw.SizedBox(width: 14),
+                          pw.SizedBox(width: 12),
                           pw.Expanded(
                             child: pw.Column(
                               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -1696,18 +1559,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 pw.Text(
                                   'EnergySmart',
                                   style: pw.TextStyle(
-                                    fontSize: 28,
+                                    fontSize: 20,
                                     fontWeight: pw.FontWeight.bold,
                                     color: PdfColors.white,
-                                    letterSpacing: 0.5,
+                                    letterSpacing: 0.3,
                                   ),
                                 ),
-                                pw.SizedBox(height: 4),
+                                pw.SizedBox(height: 2),
                                 pw.Text(
                                   'Energy Consumption Invoice',
                                   style: pw.TextStyle(
-                                    fontSize: 13,
-                                    color: PdfColors.white,
+                                    fontSize: 10,
+                                    color: PdfColors.grey200,
                                     fontWeight: pw.FontWeight.normal,
                                   ),
                                 ),
@@ -1722,40 +1585,32 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       children: [
                         pw.Container(
                           padding: const pw.EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
+                            horizontal: 10,
+                            vertical: 4,
                           ),
                           decoration: pw.BoxDecoration(
-                            color: PdfColors.grey300,
-                            borderRadius: pw.BorderRadius.circular(20),
-                            border: pw.Border.all(
-                              color: PdfColors.grey400,
-                              width: 1.5,
-                            ),
+                            color: PdfColors.grey200,
+                            borderRadius: pw.BorderRadius.circular(14),
                           ),
                           child: pw.Text(
                             'INVOICE',
                             style: pw.TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.white,
-                              letterSpacing: 1.5,
+                              color: PdfColors.blueGrey800,
+                              letterSpacing: 1,
                             ),
                           ),
                         ),
-                        pw.SizedBox(height: 12),
+                        pw.SizedBox(height: 8),
                         pw.Container(
                           padding: const pw.EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
+                            horizontal: 10,
+                            vertical: 6,
                           ),
                           decoration: pw.BoxDecoration(
                             color: PdfColors.grey200,
                             borderRadius: pw.BorderRadius.circular(8),
-                            border: pw.Border.all(
-                              color: PdfColors.grey400,
-                              width: 1,
-                            ),
                           ),
                           child: pw.Column(
                             crossAxisAlignment: pw.CrossAxisAlignment.end,
@@ -1763,26 +1618,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               pw.Text(
                                 'Invoice #:',
                                 style: pw.TextStyle(
-                                  fontSize: 10,
-                                  color: PdfColors.grey700,
+                                  fontSize: 9,
+                                  color: PdfColors.blueGrey700,
                                 ),
                               ),
-                              pw.SizedBox(height: 2),
+                              pw.SizedBox(height: 1),
                               pw.Text(
                                 invoiceNumber,
                                 style: pw.TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 12,
                                   fontWeight: pw.FontWeight.bold,
-                                  color: PdfColors.white,
+                                  color: PdfColors.blueGrey900,
                                 ),
                               ),
-                              pw.SizedBox(height: 6),
+                              pw.SizedBox(height: 3),
                               pw.Text(
                                 'Date: ${_formatDate(invoiceDate)}',
                                 style: pw.TextStyle(
-                                  fontSize: 11,
-                                  color: PdfColors.white,
-                                  fontWeight: pw.FontWeight.normal,
+                                  fontSize: 9,
+                                  color: PdfColors.blueGrey600,
                                 ),
                               ),
                             ],
@@ -1793,7 +1647,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ],
                 ),
               ),
-              pw.SizedBox(height: 30),
+              pw.SizedBox(height: 18),
 
               // Customer Information - Enhanced Layout
               pw.Row(
@@ -1812,13 +1666,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ),
                         pw.SizedBox(height: 12),
                         pw.Container(
-                          padding: const pw.EdgeInsets.all(18),
+                          padding: const pw.EdgeInsets.all(14),
                           decoration: pw.BoxDecoration(
-                            color: PdfColors.grey100,
+                            color: PdfColors.white,
                             borderRadius: pw.BorderRadius.circular(10),
                             border: pw.Border.all(
                               color: PdfColors.grey300,
-                              width: 2,
+                              width: 1,
                             ),
                           ),
                           child: pw.Column(
@@ -1829,7 +1683,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                   pw.Container(
                                     padding: const pw.EdgeInsets.all(6),
                                     decoration: pw.BoxDecoration(
-                                      color: PdfColors.grey300,
+                                      color: PdfColors.blueGrey50,
                                       borderRadius: pw.BorderRadius.circular(6),
                                     ),
                                     child: pw.Text(
@@ -1950,13 +1804,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ),
                         pw.SizedBox(height: 12),
                         pw.Container(
-                          padding: const pw.EdgeInsets.all(16),
+                          padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           decoration: pw.BoxDecoration(
-                            color: PdfColors.grey100,
+                            color: PdfColors.white,
                             borderRadius: pw.BorderRadius.circular(8),
                             border: pw.Border.all(
                               color: PdfColors.grey300,
-                              width: 1.5,
+                              width: 1,
                             ),
                           ),
                           child: pw.Text(
@@ -1972,7 +1829,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                 ],
               ),
-              pw.SizedBox(height: 25),
+              pw.SizedBox(height: 18),
 
               // Today's Usage Section - Enhanced
               pw.Text(
@@ -1984,11 +1841,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
               pw.SizedBox(height: 12),
               pw.Container(
-                padding: const pw.EdgeInsets.all(18),
+                padding: const pw.EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 decoration: pw.BoxDecoration(
-                  color: PdfColors.grey100,
+                  color: PdfColors.white,
                   borderRadius: pw.BorderRadius.circular(10),
-                  border: pw.Border.all(color: PdfColors.grey300, width: 2),
+                  border: pw.Border.all(color: PdfColors.grey300, width: 1),
                 ),
                 child: pw.Column(
                   children: [
@@ -2098,6 +1958,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     ),
                   ],
                 ),
+                if (hasMoreAppliances)
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.only(top: 4),
+                    child: pw.Text(
+                      'Additional appliances not shown (total ${applianceItems.length}).',
+                      style: pw.TextStyle(
+                        fontSize: 9,
+                        color: PdfColors.grey600,
+                      ),
+                    ),
+                  ),
                 pw.SizedBox(height: 20),
 
                 // Appliances Breakdown - Enhanced Table
@@ -2133,9 +2004,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ],
                     ),
                     // Data rows with alternating colors
-                    ...appliances.asMap().entries.map((entry) {
+                    ...displayedAppliances.asMap().entries.map((entry) {
                       final index = entry.key;
-                      final appliance = entry.value as Map<String, dynamic>;
+                      final appliance = entry.value;
                       final isEven = index % 2 == 0;
                       return pw.TableRow(
                         decoration: pw.BoxDecoration(
@@ -2176,13 +2047,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 pw.SizedBox(height: 20),
               ],
 
-              // Energy Summary - Enhanced Design
+              // Energy Summary
               pw.Container(
-                padding: const pw.EdgeInsets.all(24),
+                padding: const pw.EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: pw.BoxDecoration(
-                  color: PdfColors.grey100,
-                  borderRadius: pw.BorderRadius.circular(10),
-                  border: pw.Border.all(color: PdfColors.grey400, width: 2.5),
+                  color: PdfColors.white,
+                  borderRadius: pw.BorderRadius.circular(8),
+                  border: pw.Border.all(color: PdfColors.grey300, width: 1),
                 ),
                 child: pw.Column(
                   children: [
@@ -2190,58 +2064,61 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                       children: [
                         pw.Text(
-                          'Total Energy Consumption:',
+                          'Total Energy Consumption',
                           style: pw.TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blueGrey800,
                           ),
                         ),
                         pw.Text(
                           '${(energy['kwh'] as double).toStringAsFixed(4)} kWh',
                           style: pw.TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blueGrey900,
                           ),
                         ),
                       ],
                     ),
-                    pw.SizedBox(height: 12),
+                    pw.SizedBox(height: 8),
                     pw.Row(
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                       children: [
                         pw.Text(
-                          'Power Rate:',
+                          'Power Rate',
                           style: pw.TextStyle(
-                            fontSize: 14,
+                            fontSize: 11,
                             fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blueGrey700,
                           ),
                         ),
                         pw.Text(
                           '$currencySymbol${(energy['powerRate'] as double).toStringAsFixed(3)}/kWh',
                           style: pw.TextStyle(
-                            fontSize: 14,
-                            fontWeight: pw.FontWeight.normal,
+                            fontSize: 11,
+                            color: PdfColors.blueGrey700,
                           ),
                         ),
                       ],
                     ),
-                    pw.SizedBox(height: 16),
+                    pw.SizedBox(height: 10),
                     pw.Container(
                       padding: const pw.EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
+                        horizontal: 16,
+                        vertical: 12,
                       ),
                       decoration: pw.BoxDecoration(
-                        color: PdfColors.grey700,
-                        borderRadius: pw.BorderRadius.circular(10),
+                        color: PdfColors.blueGrey700,
+                        borderRadius: pw.BorderRadius.circular(8),
                       ),
                       child: pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text(
-                            'Total Cost:',
+                            'Total Cost',
                             style: pw.TextStyle(
-                              fontSize: 18,
+                              fontSize: 14,
                               fontWeight: pw.FontWeight.bold,
                               color: PdfColors.white,
                             ),
@@ -2249,7 +2126,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           pw.Text(
                             '$currencySymbol${(energy['cost'] as double).toStringAsFixed(2)}',
                             style: pw.TextStyle(
-                              fontSize: 22,
+                              fontSize: 16,
                               fontWeight: pw.FontWeight.bold,
                               color: PdfColors.white,
                             ),

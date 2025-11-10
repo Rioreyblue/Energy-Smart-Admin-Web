@@ -42,9 +42,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final settings = await _settingsService.getSystemSettings();
 
+      final powerRate = (settings['powerRate'] as num?)?.toDouble();
+
       setState(() {
         _powerRateController = TextEditingController(
-          text: settings['powerRate'].toString(),
+          text: powerRate != null && powerRate > 0 ? powerRate.toString() : '',
         );
         _notificationEnabled = settings['notificationEnabled'] as bool;
         _lastUpdatedBy = settings['updatedBy'] as String;
@@ -77,8 +79,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       // Get current power rate before updating
       final currentSettings = await _settingsService.getSystemSettings();
-      final currentPowerRate =
-          (currentSettings['powerRate'] as num?)?.toDouble() ?? 6.50;
+      final previousPowerRate =
+          (currentSettings['powerRate'] as num?)?.toDouble();
 
       final newPowerRate = double.parse(_powerRateController.text);
       final settings = {
@@ -89,9 +91,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final success = await _settingsService.updateSystemSettings(settings);
 
       // Save power rate history if value changed
-      if (success && currentPowerRate != newPowerRate) {
+      if (success &&
+          (previousPowerRate == null || previousPowerRate != newPowerRate)) {
         await _settingsService.savePowerRateHistory(
-          currentPowerRate,
+          previousPowerRate ?? 0.0,
           newPowerRate,
           'Updated via settings page',
         );
@@ -589,6 +592,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
+  String _formatCurrency(double value) {
+    return '₱${value.toStringAsFixed(2)}';
+  }
+
   void _showUpdateDialog() {
     showDialog(
       context: context,
@@ -705,33 +712,171 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     itemCount: history.length,
                     itemBuilder: (context, index) {
                       final item = history[index];
+                      final newValue =
+                          (item['value'] as num?)?.toDouble() ?? 0.0;
+                      final oldValue =
+                          (item['oldValue'] as num?)?.toDouble() ?? newValue;
+                      final difference = newValue - oldValue;
+                      final increased = difference > 0;
+                      final decreased = difference < 0;
+                      final arrowIcon =
+                          increased
+                              ? Iconsax.arrow_up_1
+                              : decreased
+                              ? Iconsax.arrow_down_1
+                              : Iconsax.minus;
+                      final arrowColor =
+                          increased
+                              ? AppColor.accentGreen
+                              : decreased
+                              ? AppColor.accentRed
+                              : AppColor.textSecondary;
+                      final reasonRaw = item['reason'] as String? ?? '';
+                      final reason =
+                          reasonRaw.trim().isEmpty
+                              ? 'No reason provided'
+                              : reasonRaw;
+                      final updatedBy =
+                          item['updatedBy'] as String? ?? 'Unknown';
+                      final timestamp = item['timestamp'] as DateTime?;
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: AppColor.primary,
-                            child: Text(
-                              '₱${item['value']}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          title: Text('₱${item['value']} per kWh'),
-                          subtitle: Column(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Updated by: ${item['updatedBy']}'),
-                              Text('Reason: ${item['reason']}'),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 60,
+                                    decoration: BoxDecoration(
+                                      color: AppColor.primary.withAlpha(24),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
+                                      horizontal: 8,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _formatCurrency(oldValue),
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: AppColor.textSecondary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Icon(
+                                          arrowIcon,
+                                          size: 14,
+                                          color: arrowColor,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          _formatCurrency(newValue),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 12,
+                                            color: AppColor.textPrimary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${_formatCurrency(oldValue)} → ${_formatCurrency(newValue)}',
+                                          style: ResponsiveText.body(
+                                            context,
+                                          ).copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColor.textPrimary,
+                                          ),
+                                        ),
+                                        if (difference != 0)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 4,
+                                            ),
+                                            child: Text(
+                                              'Change: ${difference > 0 ? '+' : ''}${_formatCurrency(difference.abs())} (${difference > 0 ? 'Increase' : 'Decrease'})',
+                                              style: ResponsiveText.caption(
+                                                context,
+                                              ).copyWith(
+                                                color: AppColor.textSecondary,
+                                              ),
+                                            ),
+                                          ),
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 4,
+                                          ),
+                                          child: Text(
+                                            'Reason: $reason',
+                                            style: ResponsiveText.caption(
+                                              context,
+                                            ),
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 4,
+                                          ),
+                                          child: Text(
+                                            'Updated by: $updatedBy',
+                                            style: ResponsiveText.caption(
+                                              context,
+                                            ).copyWith(
+                                              color: AppColor.textSecondary,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (timestamp != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      _formatDateTime(timestamp),
+                                      style: ResponsiveText.caption(
+                                        context,
+                                      ).copyWith(color: AppColor.textSecondary),
+                                    ),
+                                  ),
+                                )
+                              else
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      '—',
+                                      style: ResponsiveText.caption(
+                                        context,
+                                      ).copyWith(color: AppColor.textSecondary),
+                                    ),
+                                  ),
+                                ),
                             ],
-                          ),
-                          trailing: Text(
-                            _formatDateTime(item['timestamp']),
-                            style: ResponsiveText.caption(
-                              context,
-                            ).copyWith(color: AppColor.textSecondary),
                           ),
                         ),
                       );
@@ -753,8 +898,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showPowerRateDialog() async {
     // Get current power rate before showing dialog
     final currentSettings = await _settingsService.getSystemSettings();
-    final currentPowerRate =
-        (currentSettings['powerRate'] as num?)?.toDouble() ?? 6.50;
+    final currentPowerRate = (currentSettings['powerRate'] as num?)?.toDouble();
 
     final controller = TextEditingController(text: _powerRateController.text);
     final reasonController = TextEditingController();

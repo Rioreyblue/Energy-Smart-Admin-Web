@@ -30,6 +30,8 @@ class FirebaseChatService {
       StreamController<List<FirebaseChatMessage>>.broadcast();
   final StreamController<ChatStatistics> _statisticsController =
       StreamController<ChatStatistics>.broadcast();
+  final StreamController<List<AdminChatThread>> _conversationController =
+      StreamController<List<AdminChatThread>>.broadcast();
   StreamController<List<FirebaseUser>>? _usersStreamController;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _usersSnapshotSubscription;
@@ -44,11 +46,17 @@ class FirebaseChatService {
   Stream<List<FirebaseChatMessage>> get messagesStream =>
       _messagesController.stream;
   Stream<ChatStatistics> get statisticsStream => _statisticsController.stream;
+  Stream<List<AdminChatThread>> get conversationsStream =>
+      _conversationController.stream;
+  List<AdminChatThread> get currentConversations =>
+      List.unmodifiable(_currentConversations);
 
   // Current user
   FirebaseUser? _currentUser;
   StreamSubscription<QuerySnapshot>? _chatsSubscription;
   StreamSubscription<QuerySnapshot>? _messagesSubscription;
+  final Map<String, FirebaseUser> _userCache = {};
+  List<AdminChatThread> _currentConversations = [];
 
   // Flag to prevent race conditions in chat listening
   bool _isListeningToChats = false;
@@ -142,13 +150,7 @@ class FirebaseChatService {
   void _listenToChats() {
     if (_currentUser == null) {
       Logger.warning('Cannot listen to chats: current user is null');
-      if (!_chatsController.isClosed) {
-        try {
-          _chatsController.add([]);
-        } catch (e) {
-          Logger.error('Error adding empty chats to controller', e);
-        }
-      }
+      _broadcastEmptyChats();
       return;
     }
 
@@ -224,36 +226,15 @@ class FirebaseChatService {
                 Logger.debug(
                   '[listenToChats] Client-side filter found ${filteredChats.length} chats',
                 );
-                if (!_chatsController.isClosed) {
-                  try {
-                    _chatsController.add(filteredChats);
-                  } catch (e) {
-                    Logger.error(
-                      'Error adding filtered chats to controller',
-                      e,
-                    );
-                  }
-                }
+                _scheduleChatProcessing(filteredChats);
               } catch (e) {
                 Logger.error('Error processing all chats', e);
-                if (!_chatsController.isClosed) {
-                  try {
-                    _chatsController.add([]);
-                  } catch (e2) {
-                    Logger.error('Error adding empty chats to controller', e2);
-                  }
-                }
+                _broadcastEmptyChats();
               }
             },
             onError: (error) {
               Logger.error('Error listening to all chats', error);
-              if (!_chatsController.isClosed) {
-                try {
-                  _chatsController.add([]);
-                } catch (e) {
-                  Logger.error('Error adding empty chats to controller', e);
-                }
-              }
+              _broadcastEmptyChats();
             },
           );
     }
@@ -305,13 +286,7 @@ class FirebaseChatService {
                 Logger.debug(
                   '[listenToChats] Fallback query found ${chats.length} chats',
                 );
-                if (!_chatsController.isClosed) {
-                  try {
-                    _chatsController.add(chats);
-                  } catch (e) {
-                    Logger.error('Error adding chats to controller', e);
-                  }
-                }
+                _scheduleChatProcessing(chats);
               } catch (e) {
                 Logger.error('Error processing chats', e);
                 // Try client-side filtering as last resort
@@ -372,28 +347,13 @@ class FirebaseChatService {
                 Logger.debug(
                   '[listenToChats] Primary query found ${chats.length} chats',
                 );
-                if (!_chatsController.isClosed) {
-                  try {
-                    _chatsController.add(chats);
-                  } catch (e) {
-                    Logger.error('Error adding chats to controller', e);
-                  }
-                }
+                _scheduleChatProcessing(chats);
               } catch (e) {
                 Logger.error('Error processing chats', e);
                 if (_currentUser!.role == 'admin') {
                   startFallback();
                 } else {
-                  if (!_chatsController.isClosed) {
-                    try {
-                      _chatsController.add([]);
-                    } catch (e2) {
-                      Logger.error(
-                        'Error adding empty chats to controller',
-                        e2,
-                      );
-                    }
-                  }
+                  _broadcastEmptyChats();
                 }
               }
             },
@@ -403,19 +363,276 @@ class FirebaseChatService {
               if (_currentUser!.role == 'admin') {
                 startFallback();
               } else {
-                if (!_chatsController.isClosed) {
-                  try {
-                    _chatsController.add([]);
-                  } catch (e) {
-                    Logger.error('Error adding empty chats to controller', e);
-                  }
-                }
+                _broadcastEmptyChats();
               }
             },
           );
     }
 
     startPrimary();
+  }
+
+  void _scheduleChatProcessing(List<FirebaseChat> chats) {
+    Future.microtask(() async {
+      await _processChatUpdates(chats);
+    });
+  }
+
+  Future<void> _processChatUpdates(List<FirebaseChat> chats) async {
+    if (!_chatsController.isClosed) {
+      try {
+        _chatsController.add(chats);
+      } catch (e) {
+        Logger.error('Error adding chats to controller', e);
+      }
+    }
+
+    try {
+      final conversationFutures = await Future.wait(
+        chats.map(_buildAdminConversation),
+      );
+      final conversations =
+          conversationFutures.whereType<AdminChatThread>().toList()
+            ..sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
+      _currentConversations = conversations;
+      if (!_conversationController.isClosed) {
+        _conversationController.add(conversations);
+      }
+    } catch (e, stackTrace) {
+      Logger.error('Error building admin conversations', e, stackTrace);
+      if (!_conversationController.isClosed) {
+        try {
+          _conversationController.addError(e, stackTrace);
+        } catch (e2) {
+          Logger.error('Error adding conversation error to controller', e2);
+        }
+      }
+    }
+  }
+
+  void _broadcastEmptyChats() {
+    if (!_chatsController.isClosed) {
+      try {
+        _chatsController.add([]);
+      } catch (e) {
+        Logger.error('Error adding empty chats to controller', e);
+      }
+    }
+    if (!_conversationController.isClosed) {
+      try {
+        _conversationController.add([]);
+      } catch (e) {
+        Logger.error('Error adding empty conversations to controller', e);
+      }
+    }
+    _currentConversations = [];
+  }
+
+  Future<AdminChatThread?> _buildAdminConversation(FirebaseChat chat) async {
+    final otherUserId = _getChatUserId(chat);
+    if (otherUserId == null || otherUserId.isEmpty) {
+      return null;
+    }
+
+    final user = await _getUserForChat(otherUserId);
+    if (user == null) {
+      return null;
+    }
+
+    FirebaseUser? assignedAdmin;
+    if (chat.assignedAdminId != null && chat.assignedAdminId!.isNotEmpty) {
+      assignedAdmin = await _getUserForChat(
+        chat.assignedAdminId!,
+        allowAdminFallback: true,
+      );
+    }
+
+    final unread = _calculateUnreadForAdmin(chat);
+
+    return AdminChatThread(
+      chat: chat,
+      user: user,
+      assignedAdmin: assignedAdmin,
+      unreadForAdmin: unread,
+    );
+  }
+
+  String? _getChatUserId(FirebaseChat chat) {
+    final adminId = _currentUser?.id;
+    for (final participant in chat.participants) {
+      if (participant == 'admin') continue;
+      if (adminId != null && participant == adminId) continue;
+      return participant;
+    }
+    return null;
+  }
+
+  Future<FirebaseUser?> _getUserForChat(
+    String userId, {
+    bool allowAdminFallback = false,
+  }) async {
+    if (userId.isEmpty) return null;
+    if (_userCache.containsKey(userId)) return _userCache[userId];
+
+    FirebaseUser? user;
+
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      if (doc.exists) {
+        user = FirebaseUser.fromJson({'id': doc.id, ...doc.data()!});
+        user = await _enrichUserFromRealtimeDB(userId, user);
+      }
+    } catch (e, stackTrace) {
+      Logger.error('Error fetching user $userId for chat', e, stackTrace);
+    }
+
+    if (user == null && allowAdminFallback) {
+      try {
+        final adminDoc =
+            await _firestore.collection('admins').doc(userId).get();
+        if (adminDoc.exists) {
+          final data = adminDoc.data() ?? {};
+          user = FirebaseUser(
+            id: adminDoc.id,
+            name:
+                data['name'] ??
+                data['full_name'] ??
+                data['email'] ??
+                'Admin User',
+            email: data['email'] ?? '',
+            role: 'admin',
+            photoUrl: data['photo_url'] ?? data['photoUrl'],
+            createdAt:
+                (data['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            lastSeen: DateTime.now(),
+            isOnline: true,
+          );
+        }
+      } catch (e, stackTrace) {
+        Logger.error(
+          'Error fetching assigned admin $userId for chat',
+          e,
+          stackTrace,
+        );
+      }
+    }
+
+    user ??= FirebaseUser(
+      id: userId,
+      name: 'Unknown User',
+      email: '',
+      role: allowAdminFallback ? 'admin' : 'user',
+      photoUrl: null,
+      createdAt: DateTime.now(),
+      lastSeen: DateTime.now(),
+      isOnline: false,
+    );
+
+    _userCache[userId] = user;
+    return user;
+  }
+
+  int _calculateUnreadForAdmin(FirebaseChat chat) {
+    final adminUnread = chat.unreadCount['admin'] ?? 0;
+    if (_currentUser == null) return adminUnread;
+    final currentUserUnread = chat.unreadCount[_currentUser!.id] ?? 0;
+    return adminUnread > 0 ? adminUnread : currentUserUnread;
+  }
+
+  int unreadCountForChat(FirebaseChat chat) => _calculateUnreadForAdmin(chat);
+
+  AdminChatThread? getConversationById(String chatId) {
+    for (final thread in _currentConversations) {
+      if (thread.id == chatId) {
+        return thread;
+      }
+    }
+    return null;
+  }
+
+  List<AdminChatThread> filterConversations({
+    String? query,
+    ChatStatus? status,
+    ChatPriority? priority,
+    bool? unassignedOnly,
+  }) {
+    Iterable<AdminChatThread> results = _currentConversations;
+
+    if (query != null && query.trim().isNotEmpty) {
+      final normalized = query.trim().toLowerCase();
+      results = results.where((thread) {
+        final userName = thread.user.name.toLowerCase();
+        final userEmail = thread.user.email.toLowerCase();
+        final subject = thread.chat.subject?.toLowerCase() ?? '';
+        return userName.contains(normalized) ||
+            userEmail.contains(normalized) ||
+            subject.contains(normalized);
+      });
+    }
+
+    if (status != null) {
+      results = results.where((thread) => thread.status == status);
+    }
+
+    if (priority != null) {
+      results = results.where((thread) => thread.priority == priority);
+    }
+
+    if (unassignedOnly == true) {
+      results = results.where((thread) => thread.chat.assignedAdminId == null);
+    }
+
+    return List<AdminChatThread>.unmodifiable(results);
+  }
+
+  Future<void> markConversationAsRead(String chatId) async {
+    if (_currentUser == null) return;
+    final updates = <String, dynamic>{'unreadCount.admin': 0};
+    updates['unreadCount.${_currentUser!.id}'] = 0;
+
+    try {
+      await _firestore.collection('chats').doc(chatId).update(updates);
+    } catch (e) {
+      Logger.error('Error marking conversation $chatId as read', e);
+    }
+  }
+
+  Future<void> refreshConversations() async {
+    if (_currentUser == null) return;
+
+    Query query;
+    if (_currentUser!.role == 'admin') {
+      query = _firestore
+          .collection('chats')
+          .where('participants', arrayContains: 'admin');
+    } else {
+      query = _firestore
+          .collection('chats')
+          .where('participants', arrayContains: _currentUser!.id);
+    }
+
+    try {
+      final snapshot =
+          await query.orderBy('lastMessageTime', descending: true).get();
+      final chats =
+          snapshot.docs
+              .map((doc) {
+                try {
+                  final data = doc.data() as Map<String, dynamic>?;
+                  if (data == null) return null;
+                  return FirebaseChat.fromJson({'id': doc.id, ...data});
+                } catch (e) {
+                  Logger.error('Error parsing chat ${doc.id}', e);
+                  return null;
+                }
+              })
+              .whereType<FirebaseChat>()
+              .toList();
+
+      await _processChatUpdates(chats);
+    } catch (e, stackTrace) {
+      Logger.error('Error refreshing conversations', e, stackTrace);
+    }
   }
 
   /// Fetch more chats (pagination)
@@ -1429,6 +1646,7 @@ class FirebaseChatService {
 
     // Get or create chat thread
     final chatId = await getOrCreateChatWithUser(userId);
+    await _ensureChatAssignedToCurrentAdmin(chatId);
 
     final messageId = _uuid.v4();
     final messageRef = _firestore
@@ -1567,6 +1785,7 @@ class FirebaseChatService {
 
     // Get or create chat thread
     final chatId = await getOrCreateChatWithUser(userId);
+    await _ensureChatAssignedToCurrentAdmin(chatId);
 
     final messageId = _uuid.v4();
 
@@ -1839,6 +2058,84 @@ class FirebaseChatService {
     await _firestore.collection('chats').doc(chatId).update({
       'assignedAdminId': adminId,
     });
+  }
+
+  Future<void> unassignChat(String chatId) async {
+    await _firestore.collection('chats').doc(chatId).update({
+      'assignedAdminId': FieldValue.delete(),
+    });
+  }
+
+  Future<void> ensureChatAssignedToCurrentAdmin(String chatId) async {
+    await _ensureChatAssignedToCurrentAdmin(chatId);
+  }
+
+  Future<void> _ensureChatAssignedToCurrentAdmin(String chatId) async {
+    if (_currentUser == null || _currentUser!.role != 'admin') return;
+
+    final chatRef = _firestore.collection('chats').doc(chatId);
+
+    try {
+      await _firestore.runTransaction((transaction) async {
+        final snapshot = await transaction.get(chatRef);
+        if (!snapshot.exists) return;
+
+        final data = snapshot.data() as Map<String, dynamic>;
+        final currentAssigned = data['assignedAdminId'] as String?;
+
+        if (currentAssigned == null || currentAssigned.isEmpty) {
+          transaction.update(chatRef, {
+            'assignedAdminId': _currentUser!.id,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      });
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Error ensuring chat $chatId assigned to current admin',
+        e,
+        stackTrace,
+      );
+    }
+  }
+
+  Future<List<FirebaseUser>> fetchAdminUsers({
+    bool includeCurrent = true,
+  }) async {
+    try {
+      final snapshot = await _firestore.collection('admins').get();
+      final admins = <FirebaseUser>[];
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final adminUser = FirebaseUser(
+          id: doc.id,
+          name:
+              data['name'] ??
+              data['full_name'] ??
+              data['email'] ??
+              'Admin User',
+          email: data['email'] ?? '',
+          role: 'admin',
+          photoUrl: data['photo_url'] ?? data['photoUrl'],
+          createdAt:
+              (data['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          lastSeen: DateTime.now(),
+          isOnline: true,
+        );
+        admins.add(adminUser);
+        _userCache[doc.id] = adminUser;
+      }
+
+      if (!includeCurrent && _currentUser != null) {
+        admins.removeWhere((admin) => admin.id == _currentUser!.id);
+      }
+
+      return admins;
+    } catch (e, stackTrace) {
+      Logger.error('Error fetching admin users', e, stackTrace);
+      return [];
+    }
   }
 
   /// Mark messages as seen by current user
@@ -2285,6 +2582,9 @@ class FirebaseChatService {
     _chatsController.close();
     _messagesController.close();
     _statisticsController.close();
+    _conversationController.close();
+    _currentConversations = [];
+    _userCache.clear();
   }
 
   void _startUsersListener() {

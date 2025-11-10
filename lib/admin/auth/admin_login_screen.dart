@@ -542,7 +542,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
         errorBuilder: (context, error, stackTrace) {
           // Fallback to a simple animated icon if Lottie file is not available
           return Icon(
-                Iconsax.flash_1,
+                Iconsax.flash,
                 size: 80,
                 color: Colors.white.withAlpha(179),
               )

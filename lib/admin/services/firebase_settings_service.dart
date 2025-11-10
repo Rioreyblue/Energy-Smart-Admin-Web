@@ -27,7 +27,7 @@ class FirebaseSettingsService {
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
         return {
-          'powerRate': data['powerRate'] ?? 6.50,
+          'powerRate': (data['powerRate'] as num?)?.toDouble(),
           'targetThreshold': data['targetThreshold'] ?? 85.0,
           'notificationEnabled': data['notificationEnabled'] ?? true,
           'autoReports': data['autoReports'] ?? true,
@@ -91,7 +91,7 @@ class FirebaseSettingsService {
       }
 
       // Get old value if not provided
-      double oldPowerRate = oldValue ?? 6.50;
+      double oldPowerRate = oldValue ?? 0.0;
       if (oldValue == null) {
         try {
           final doc =
@@ -101,7 +101,7 @@ class FirebaseSettingsService {
                   .get();
           if (doc.exists && doc.data() != null) {
             oldPowerRate =
-                (doc.data()!['powerRate'] as num?)?.toDouble() ?? 6.50;
+                (doc.data()!['powerRate'] as num?)?.toDouble() ?? 0.0;
           }
         } catch (e) {
           Logger.error('Error getting old power rate', e);
@@ -133,29 +133,110 @@ class FirebaseSettingsService {
 
   /// Get power rate history
   Future<List<Map<String, dynamic>>> getPowerRateHistory() async {
+    final historyCollection = _firestore.collection(
+      '${_settingsCollection}_history',
+    );
+    final entries = <Map<String, dynamic>>[];
+    final seenIds = <String>{};
+
+    Map<String, dynamic>? parseHistoryEntry(
+      String id,
+      Map<String, dynamic>? data,
+    ) {
+      if (data == null) return null;
+      final dynamic timestampValue = data['timestamp'];
+      DateTime? timestamp;
+      if (timestampValue is Timestamp) {
+        timestamp = timestampValue.toDate();
+      } else if (timestampValue is DateTime) {
+        timestamp = timestampValue;
+      } else if (timestampValue is int) {
+        timestamp = DateTime.fromMillisecondsSinceEpoch(timestampValue);
+      } else if (timestampValue is String) {
+        timestamp = DateTime.tryParse(timestampValue);
+      }
+
+      return {
+        'id': id,
+        'settingType': data['settingType'] ?? 'powerRate',
+        'value': (data['value'] as num?)?.toDouble() ?? 0.0,
+        'oldValue': (data['oldValue'] as num?)?.toDouble(),
+        'timestamp': timestamp,
+        'updatedBy': data['updatedBy'] ?? 'Unknown',
+        'updatedById': data['updatedById'],
+        'reason': data['reason'] ?? 'No reason provided',
+      };
+    }
+
+    // Primary query: top-level documents
     try {
       final snapshot =
-          await _firestore
-              .collection('${_settingsCollection}_history')
-              .where('settingType', isEqualTo: 'powerRate')
-              .orderBy('timestamp', descending: true)
-              .limit(10)
-              .get();
-
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          'value': data['value'],
-          'timestamp': (data['timestamp'] as Timestamp).toDate(),
-          'updatedBy': data['updatedBy'],
-          'reason': data['reason'] ?? 'No reason provided',
-        };
-      }).toList();
+          await historyCollection.orderBy('timestamp', descending: true).get();
+      for (final doc in snapshot.docs) {
+        final parsed = parseHistoryEntry(doc.id, doc.data());
+        if (parsed == null) continue;
+        if (parsed['settingType'] != 'powerRate') continue;
+        if (seenIds.add(parsed['id'] as String)) {
+          entries.add(parsed);
+        }
+      }
     } catch (e) {
-      Logger.error('Error getting power rate history', e);
-      return [];
+      Logger.debug(
+        'Primary power rate history query failed, trying fallback: $e',
+      );
     }
+
+    // Fallback: specific document or nested subcollection
+    if (entries.isEmpty) {
+      try {
+        final fallbackDoc =
+            await historyCollection.doc('admin_settings_historyId').get();
+
+        if (fallbackDoc.exists) {
+          final parsed = parseHistoryEntry(fallbackDoc.id, fallbackDoc.data());
+          if (parsed != null &&
+              parsed['settingType'] == 'powerRate' &&
+              seenIds.add(parsed['id'] as String)) {
+            entries.add(parsed);
+          }
+
+          try {
+            final subSnapshot =
+                await historyCollection
+                    .doc('admin_settings_historyId')
+                    .collection('history')
+                    .orderBy('timestamp', descending: true)
+                    .get();
+            for (final doc in subSnapshot.docs) {
+              final parsed = parseHistoryEntry(doc.id, doc.data());
+              if (parsed == null) continue;
+              if (parsed['settingType'] != 'powerRate') continue;
+              if (seenIds.add(parsed['id'] as String)) {
+                entries.add(parsed);
+              }
+            }
+          } catch (e) {
+            Logger.debug(
+              'No nested history subcollection found for fallback: $e',
+            );
+          }
+        }
+      } catch (e) {
+        Logger.error('Error fetching fallback power rate history', e);
+      }
+    }
+
+    entries.sort((a, b) {
+      final aTime =
+          (a['timestamp'] as DateTime?) ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      final bTime =
+          (b['timestamp'] as DateTime?) ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      return bTime.compareTo(aTime);
+    });
+
+    return entries;
   }
 
   /// Save power rate change to history
@@ -185,7 +266,7 @@ class FirebaseSettingsService {
   /// Get default settings
   Map<String, dynamic> _getDefaultSettings() {
     return {
-      'powerRate': 6.50,
+      'powerRate': null,
       'targetThreshold': 85.0,
       'notificationEnabled': true,
       'autoReports': true,

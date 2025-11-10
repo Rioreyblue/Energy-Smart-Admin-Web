@@ -595,24 +595,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
             ],
           ),
-          Row(
-            children: [
-              _buildActionButton(
-                'Export Report',
-                Iconsax.document_download,
-                AppColor.primary,
-                () {
-                  _exportAnalyticsReport();
-                },
-              ),
-              const SizedBox(width: 12),
-              _buildActionButton(
-                'Refresh Data',
-                Iconsax.refresh,
-                AppColor.accentGreen,
-                _loadAnalyticsData,
-              ),
-            ],
+          _buildActionButton(
+            'Refresh Data',
+            Iconsax.refresh,
+            AppColor.accentGreen,
+            _loadAnalyticsData,
           ),
         ],
       ),
@@ -1116,32 +1103,5 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       default:
         return const Center(child: Text('Chart not available'));
     }
-  }
-
-  void _exportAnalyticsReport() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(
-              'Export Analytics Report',
-              style: ResponsiveText.title(context),
-            ),
-            content: const Text(
-              'This feature will be available in the next update. You will be able to export detailed analytics reports in PDF and CSV formats.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  'OK',
-                  style: ResponsiveText.body(
-                    context,
-                  ).copyWith(color: AppColor.textSecondary),
-                ),
-              ),
-            ],
-          ),
-    );
   }
 }

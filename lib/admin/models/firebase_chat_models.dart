@@ -577,3 +577,38 @@ class ChatStatistics {
     );
   }
 }
+
+/// Aggregated view for admin chat console
+class AdminChatThread {
+  final FirebaseChat chat;
+  final FirebaseUser user;
+  final FirebaseUser? assignedAdmin;
+  final int unreadForAdmin;
+
+  AdminChatThread({
+    required this.chat,
+    required this.user,
+    required this.unreadForAdmin,
+    this.assignedAdmin,
+  });
+
+  String get id => chat.id;
+  ChatStatus get status => chat.status;
+  ChatPriority get priority => chat.priority;
+  DateTime get lastMessageTime => chat.lastMessageTime;
+  bool get hasUnread => unreadForAdmin > 0;
+
+  AdminChatThread copyWith({
+    FirebaseChat? chat,
+    FirebaseUser? user,
+    FirebaseUser? assignedAdmin,
+    int? unreadForAdmin,
+  }) {
+    return AdminChatThread(
+      chat: chat ?? this.chat,
+      user: user ?? this.user,
+      assignedAdmin: assignedAdmin ?? this.assignedAdmin,
+      unreadForAdmin: unreadForAdmin ?? this.unreadForAdmin,
+    );
+  }
+}
