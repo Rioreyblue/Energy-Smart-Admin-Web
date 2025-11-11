@@ -1,388 +1,579 @@
 import 'dart:async';
-import 'dart:math';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../models/chat_message_model.dart';
 
 class ChatService {
+  ChatService._internal();
   static final ChatService _instance = ChatService._internal();
   factory ChatService() => _instance;
-  ChatService._internal();
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   final StreamController<List<ChatConversation>> _conversationsController =
       StreamController<List<ChatConversation>>.broadcast();
-  final StreamController<ChatConversation> _activeConversationController =
-      StreamController<ChatConversation>.broadcast();
+  final StreamController<ChatConversation?> _activeConversationController =
+      StreamController<ChatConversation?>.broadcast();
 
   Stream<List<ChatConversation>> get conversationsStream =>
       _conversationsController.stream;
-  Stream<ChatConversation> get activeConversationStream =>
+  Stream<ChatConversation?> get activeConversationStream =>
       _activeConversationController.stream;
 
-  List<ChatConversation> _conversations = [];
+  final Map<String, ChatConversation> _conversationCache = {};
+  final Map<String, List<ChatMessage>> _messagesCache = {};
+  final Map<String, _UserProfile> _userCache = {};
+  final Map<String, _UserProfile> _adminCache = {};
+
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _conversationsSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _messagesSubscription;
+
   ChatConversation? _activeConversation;
+  String? _activeConversationId;
 
-  // Initialize with mock data
-  void initialize() {
-    _conversations = _generateMockConversations();
-    _conversationsController.add(_conversations);
+  bool _initialized = false;
+
+  Future<void> initialize() async {
+    if (_initialized) return;
+    final adminId = _requireAdminId();
+    await _listenToConversations(adminId);
+    _initialized = true;
   }
 
-  // Get all conversations
-  List<ChatConversation> getConversations() {
-    return _conversations;
+  Future<void> refresh() async {
+    final adminId = _requireAdminId();
+    await _listenToConversations(adminId, forceRefresh: true);
   }
 
-  // Get conversation by ID
-  ChatConversation? getConversationById(String id) {
-    try {
-      return _conversations.firstWhere((c) => c.id == id);
-    } catch (e) {
-      return null;
-    }
-  }
+  ChatConversation? getConversationById(String id) => _conversationCache[id];
 
-  // Set active conversation
-  void setActiveConversation(String conversationId) {
-    final conversation = getConversationById(conversationId);
+  Future<void> setActiveConversation(String conversationId) async {
+    final adminId = _requireAdminId();
+    _activeConversationId = conversationId;
+    await _listenToMessages(conversationId, adminId);
+
+    final conversation = _conversationCache[conversationId];
     if (conversation != null) {
-      _activeConversation = conversation;
-      _activeConversationController.add(conversation);
-
-      // Mark messages as read
-      _markMessagesAsRead(conversationId);
+      _activeConversation = conversation.copyWith(
+        messages: _messagesCache[conversationId] ?? const [],
+      );
+      _activeConversationController.add(_activeConversation);
+      await markConversationAsRead(conversationId);
+    } else {
+      _activeConversationController.add(null);
     }
   }
 
-  // Send message
   Future<void> sendMessage({
     required String conversationId,
     required String content,
     ChatMessageType type = ChatMessageType.text,
-    List<String>? attachments,
+    List<ChatAttachment>? attachments,
+    Map<String, dynamic>? metadata,
   }) async {
-    final conversation = getConversationById(conversationId);
-    if (conversation == null) return;
-
-    final message = ChatMessage(
-      id: _generateId(),
-      conversationId: conversationId,
-      senderId: 'admin_001',
-      senderName: 'Admin User',
-      senderRole: 'admin',
-      content: content,
-      type: type,
-      timestamp: DateTime.now(),
-      isRead: true,
-      attachments: attachments,
-    );
-
-    // Add message to conversation
-    final updatedMessages = [...conversation.messages, message];
-    final updatedConversation = conversation.copyWith(
-      messages: updatedMessages,
-      lastMessageAt: DateTime.now(),
-      status: ChatStatus.inProgress,
-    );
-
-    // Update conversations list
-    final index = _conversations.indexWhere((c) => c.id == conversationId);
-    if (index != -1) {
-      _conversations[index] = updatedConversation;
-      _conversationsController.add(_conversations);
-
-      if (_activeConversation?.id == conversationId) {
-        _activeConversation = updatedConversation;
-        _activeConversationController.add(updatedConversation);
-      }
+    final admin = _auth.currentUser;
+    if (admin == null) {
+      throw StateError('Admin must be authenticated to send messages.');
     }
 
-    // Simulate user response after a delay
-    _simulateUserResponse(conversationId);
+    final adminId = admin.uid;
+    final chatRef = _firestore.collection('chats').doc(conversationId);
+    final messageRef = chatRef.collection('messages').doc();
+
+    final conversation = _conversationCache[conversationId];
+    final userId = conversation?.userId;
+
+    final preview = _buildPreviewFromMessage(type, content, attachments);
+    final timestamp = FieldValue.serverTimestamp();
+
+    final adminName = admin.displayName ?? admin.email ?? 'Admin';
+    final payload = <String, dynamic>{
+      'senderId': adminId,
+      'senderName': adminName,
+      'senderRole': 'admin',
+      'senderEmail': admin.email,
+      if (admin.photoURL != null) 'senderPhotoUrl': admin.photoURL,
+      'text': content,
+      'type': type.name,
+      'status': ChatMessageStatus.sent.name,
+      'timestamp': timestamp,
+      'createdAt': timestamp,
+      if (metadata != null) 'metadata': metadata,
+      if (attachments != null && attachments.isNotEmpty)
+        'attachments': attachments.map((a) => a.toJson()).toList(),
+    };
+
+    await messageRef.set(payload);
+
+    final chatUpdates = <String, dynamic>{
+      'lastMessage': preview,
+      'lastMessageTime': timestamp,
+      'updatedAt': timestamp,
+      'status': ChatStatus.inProgress.name,
+    };
+
+    if (userId != null && userId.isNotEmpty) {
+      chatUpdates['unreadCount.$userId'] = FieldValue.increment(1);
+    }
+
+    await chatRef.update(chatUpdates);
   }
 
-  // Update conversation status
   Future<void> updateConversationStatus(
     String conversationId,
     ChatStatus status,
   ) async {
-    final index = _conversations.indexWhere((c) => c.id == conversationId);
-    if (index != -1) {
-      _conversations[index] = _conversations[index].copyWith(status: status);
-      _conversationsController.add(_conversations);
-
-      if (_activeConversation?.id == conversationId) {
-        _activeConversation = _conversations[index];
-        _activeConversationController.add(_conversations[index]);
-      }
-    }
+    await _firestore.collection('chats').doc(conversationId).update({
+      'status': status.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
-  // Update conversation priority
   Future<void> updateConversationPriority(
     String conversationId,
     ChatPriority priority,
   ) async {
-    final index = _conversations.indexWhere((c) => c.id == conversationId);
-    if (index != -1) {
-      _conversations[index] = _conversations[index].copyWith(
-        priority: priority,
-      );
-      _conversationsController.add(_conversations);
-
-      if (_activeConversation?.id == conversationId) {
-        _activeConversation = _conversations[index];
-        _activeConversationController.add(_conversations[index]);
-      }
-    }
-  }
-
-  // Assign conversation to admin
-  Future<void> assignConversation(
-    String conversationId,
-    String adminId,
-    String adminName,
-  ) async {
-    final index = _conversations.indexWhere((c) => c.id == conversationId);
-    if (index != -1) {
-      _conversations[index] = _conversations[index].copyWith(
-        assignedAdminId: adminId,
-        assignedAdminName: adminName,
-      );
-      _conversationsController.add(_conversations);
-
-      if (_activeConversation?.id == conversationId) {
-        _activeConversation = _conversations[index];
-        _activeConversationController.add(_conversations[index]);
-      }
-    }
-  }
-
-  // Mark messages as read
-  void _markMessagesAsRead(String conversationId) {
-    final index = _conversations.indexWhere((c) => c.id == conversationId);
-    if (index != -1) {
-      final conversation = _conversations[index];
-      final updatedMessages =
-          conversation.messages.map((m) {
-            if (m.senderRole != 'admin' && !m.isRead) {
-              return m.copyWith(isRead: true);
-            }
-            return m;
-          }).toList();
-
-      _conversations[index] = conversation.copyWith(
-        messages: updatedMessages,
-        unreadCount: 0,
-      );
-      _conversationsController.add(_conversations);
-    }
-  }
-
-  // Get unread conversations count
-  int getUnreadConversationsCount() {
-    return _conversations.where((c) => c.unreadCount > 0).length;
-  }
-
-  // Get total unread messages count
-  int getTotalUnreadMessagesCount() {
-    return _conversations.fold(0, (sum, c) => sum + c.unreadCount);
-  }
-
-  // Simulate user response
-  void _simulateUserResponse(String conversationId) {
-    Timer(const Duration(seconds: 3), () {
-      final responses = [
-        "Thank you for your help!",
-        "That makes sense, let me try that.",
-        "I'm still having issues with this.",
-        "Could you provide more details?",
-        "Perfect, that solved my problem!",
-        "I need to check something first.",
-      ];
-
-      final conversation = getConversationById(conversationId);
-      if (conversation == null) return;
-
-      final message = ChatMessage(
-        id: _generateId(),
-        conversationId: conversationId,
-        senderId: conversation.userId,
-        senderName: conversation.userName,
-        senderRole: 'user',
-        content: responses[Random().nextInt(responses.length)],
-        type: ChatMessageType.text,
-        timestamp: DateTime.now(),
-        isRead: false,
-      );
-
-      final updatedMessages = [...conversation.messages, message];
-      final updatedConversation = conversation.copyWith(
-        messages: updatedMessages,
-        lastMessageAt: DateTime.now(),
-        unreadCount: conversation.unreadCount + 1,
-      );
-
-      final index = _conversations.indexWhere((c) => c.id == conversationId);
-      if (index != -1) {
-        _conversations[index] = updatedConversation;
-        _conversationsController.add(_conversations);
-
-        if (_activeConversation?.id == conversationId) {
-          _activeConversation = updatedConversation;
-          _activeConversationController.add(updatedConversation);
-        }
-      }
+    await _firestore.collection('chats').doc(conversationId).update({
+      'priority': priority.name,
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  // Generate mock conversations
-  List<ChatConversation> _generateMockConversations() {
-    final now = DateTime.now();
-    return [
-      ChatConversation(
-        id: 'conv_001',
-        userId: 'user_001',
-        userName: 'John Doe',
-        userEmail: 'john.doe@example.com',
-        subject: 'Energy Usage Query',
-        status: ChatStatus.open,
-        priority: ChatPriority.normal,
-        createdAt: now.subtract(const Duration(hours: 2)),
-        lastMessageAt: now.subtract(const Duration(minutes: 30)),
-        unreadCount: 2,
-        messages: [
-          ChatMessage(
-            id: 'msg_001',
-            conversationId: 'conv_001',
-            senderId: 'user_001',
-            senderName: 'John Doe',
-            senderRole: 'user',
-            content: 'Hi, I have a question about my energy usage data.',
-            type: ChatMessageType.text,
-            timestamp: now.subtract(const Duration(hours: 2)),
-            isRead: true,
-          ),
-          ChatMessage(
-            id: 'msg_002',
-            conversationId: 'conv_001',
-            senderId: 'user_001',
-            senderName: 'John Doe',
-            senderRole: 'user',
-            content: 'My dashboard shows unusual spikes in consumption.',
-            type: ChatMessageType.text,
-            timestamp: now.subtract(const Duration(minutes: 30)),
-            isRead: false,
-          ),
-        ],
-      ),
-      ChatConversation(
-        id: 'conv_002',
-        userId: 'user_002',
-        userName: 'Jane Smith',
-        userEmail: 'jane.smith@example.com',
-        subject: 'Billing Issue',
-        status: ChatStatus.inProgress,
-        priority: ChatPriority.high,
-        createdAt: now.subtract(const Duration(hours: 4)),
-        lastMessageAt: now.subtract(const Duration(minutes: 15)),
-        unreadCount: 1,
-        assignedAdminId: 'admin_001',
-        assignedAdminName: 'Admin User',
-        messages: [
-          ChatMessage(
-            id: 'msg_003',
-            conversationId: 'conv_002',
-            senderId: 'user_002',
-            senderName: 'Jane Smith',
-            senderRole: 'user',
-            content: 'There seems to be an error in my billing calculation.',
-            type: ChatMessageType.text,
-            timestamp: now.subtract(const Duration(hours: 4)),
-            isRead: true,
-          ),
-          ChatMessage(
-            id: 'msg_004',
-            conversationId: 'conv_002',
-            senderId: 'admin_001',
-            senderName: 'Admin User',
-            senderRole: 'admin',
-            content:
-                'I\'ll look into this right away. Can you provide your account details?',
-            type: ChatMessageType.text,
-            timestamp: now.subtract(const Duration(hours: 3, minutes: 30)),
-            isRead: true,
-          ),
-          ChatMessage(
-            id: 'msg_005',
-            conversationId: 'conv_002',
-            senderId: 'user_002',
-            senderName: 'Jane Smith',
-            senderRole: 'user',
-            content: 'Sure, my account ID is ES-12345.',
-            type: ChatMessageType.text,
-            timestamp: now.subtract(const Duration(minutes: 15)),
-            isRead: false,
-          ),
-        ],
-      ),
-      ChatConversation(
-        id: 'conv_003',
-        userId: 'user_003',
-        userName: 'Mike Johnson',
-        userEmail: 'mike.johnson@example.com',
-        subject: 'Device Connection Problem',
-        status: ChatStatus.resolved,
-        priority: ChatPriority.normal,
-        createdAt: now.subtract(const Duration(days: 1)),
-        lastMessageAt: now.subtract(const Duration(hours: 6)),
-        unreadCount: 0,
-        assignedAdminId: 'admin_001',
-        assignedAdminName: 'Admin User',
-        messages: [
-          ChatMessage(
-            id: 'msg_006',
-            conversationId: 'conv_003',
-            senderId: 'user_003',
-            senderName: 'Mike Johnson',
-            senderRole: 'user',
-            content: 'My smart meter is not connecting to the system.',
-            type: ChatMessageType.text,
-            timestamp: now.subtract(const Duration(days: 1)),
-            isRead: true,
-          ),
-          ChatMessage(
-            id: 'msg_007',
-            conversationId: 'conv_003',
-            senderId: 'admin_001',
-            senderName: 'Admin User',
-            senderRole: 'admin',
-            content:
-                'Let me help you troubleshoot this. Please try restarting your device.',
-            type: ChatMessageType.text,
-            timestamp: now.subtract(const Duration(hours: 20)),
-            isRead: true,
-          ),
-          ChatMessage(
-            id: 'msg_008',
-            conversationId: 'conv_003',
-            senderId: 'user_003',
-            senderName: 'Mike Johnson',
-            senderRole: 'user',
-            content: 'That worked! Thank you so much.',
-            type: ChatMessageType.text,
-            timestamp: now.subtract(const Duration(hours: 6)),
-            isRead: true,
-          ),
-        ],
-      ),
-    ];
+  Future<void> assignConversation(String conversationId, String adminId) async {
+    final adminProfile = await _loadAdminProfile(adminId);
+    await _firestore.collection('chats').doc(conversationId).update({
+      'assignedAdminId': adminId,
+      'assignedAdminName': adminProfile?.name ?? 'Admin',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
-  String _generateId() {
-    return 'msg_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(1000)}';
+  Future<void> unassignConversation(String conversationId) async {
+    await _firestore.collection('chats').doc(conversationId).update({
+      'assignedAdminId': FieldValue.delete(),
+      'assignedAdminName': FieldValue.delete(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
-  void dispose() {
-    _conversationsController.close();
-    _activeConversationController.close();
+  Future<void> markConversationAsRead(String conversationId) async {
+    final adminId = _requireAdminId();
+    final updates = <String, dynamic>{
+      'unreadCount.admin': 0,
+      'unreadCount.$adminId': 0,
+    };
+    await _firestore.collection('chats').doc(conversationId).update(updates);
+  }
+
+  int getUnreadConversationsCount(String adminId) {
+    return _conversationCache.values
+        .where((c) => (c.unreadCount[adminId] ?? 0) > 0)
+        .length;
+  }
+
+  int getTotalUnreadMessagesCount(String adminId) {
+    return _conversationCache.values.fold(
+      0,
+      (sum, c) => sum + (c.unreadCount[adminId] ?? 0),
+    );
+  }
+
+  Future<void> dispose() async {
+    await _conversationsSubscription?.cancel();
+    await _messagesSubscription?.cancel();
+    if (!_conversationsController.isClosed) {
+      await _conversationsController.close();
+    }
+    if (!_activeConversationController.isClosed) {
+      await _activeConversationController.close();
+    }
+    _conversationCache.clear();
+    _messagesCache.clear();
+    _userCache.clear();
+    _adminCache.clear();
+    _initialized = false;
+  }
+
+  // region -- Internal helpers -------------------------------------------------
+
+  Future<void> _listenToConversations(
+    String adminId, {
+    bool forceRefresh = false,
+  }) async {
+    if (forceRefresh) {
+      await _conversationsSubscription?.cancel();
+    } else if (_conversationsSubscription != null) {
+      return;
+    }
+
+    Query<Map<String, dynamic>> query;
+    try {
+      query = _firestore
+          .collection('chats')
+          .where('participants', arrayContainsAny: <String>[adminId, 'admin'])
+          .orderBy('lastMessageTime', descending: true);
+    } catch (_) {
+      // Fallback to simple arrayContains to avoid composite index requirement
+      query = _firestore
+          .collection('chats')
+          .where('participants', arrayContains: adminId)
+          .orderBy('lastMessageTime', descending: true);
+    }
+
+    _conversationsSubscription = query.snapshots().listen(
+      (snapshot) async {
+        final futures = snapshot.docs.map(
+          (doc) => _buildConversation(doc, adminId),
+        );
+        final conversations =
+            (await Future.wait(futures)).whereType<ChatConversation>().toList()
+              ..sort((a, b) => b.lastMessageAt.compareTo(a.lastMessageAt));
+
+        _conversationCache
+          ..clear()
+          ..addEntries(conversations.map((c) => MapEntry(c.id, c)));
+
+        _conversationsController.add(conversations);
+
+        if (_activeConversationId != null) {
+          await setActiveConversation(_activeConversationId!);
+        }
+      },
+      onError: (error) {
+        _conversationsController.addError(error);
+      },
+    );
+  }
+
+  Future<ChatConversation?> _buildConversation(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    String adminId,
+  ) async {
+    final data = doc.data();
+
+    final createdAt = _toDateTime(data['createdAt']);
+    final lastMessageTime =
+        _toDateTime(data['lastMessageTime']) ?? createdAt ?? DateTime.now();
+    final unreadMap =
+        (data['unreadCount'] as Map<String, dynamic>?)?.map(
+          (key, value) => MapEntry(key, (value as num).toInt()),
+        ) ??
+        const <String, int>{};
+
+    final participants = List<String>.from(data['participants'] ?? []);
+    final userId = _resolveUserId(participants, adminId) ?? data['userId'];
+
+    final storedSenderName = data['senderName'] as String?;
+    final storedSenderEmail = data['senderEmail'] as String?;
+    final storedSenderPhoto = data['senderPhotoUrl'] as String?;
+
+    final userProfile =
+        userId != null
+            ? (await _loadUserProfile(userId)) ?? const _UserProfile()
+            : const _UserProfile();
+
+    final resolvedName = storedSenderName ?? userProfile.name ?? 'User';
+    final resolvedEmail = storedSenderEmail ?? userProfile.email;
+
+    final metadataUpdates = <String, dynamic>{};
+    if (storedSenderName == null && userProfile.name != null) {
+      metadataUpdates['senderName'] = userProfile.name;
+    }
+    if (storedSenderEmail == null && userProfile.email != null) {
+      metadataUpdates['senderEmail'] = userProfile.email;
+    }
+    if (storedSenderPhoto == null && userProfile.photoUrl != null) {
+      metadataUpdates['senderPhotoUrl'] = userProfile.photoUrl;
+    }
+    if (metadataUpdates.isNotEmpty) {
+      await doc.reference.set(metadataUpdates, SetOptions(merge: true));
+    }
+
+    final assignedAdminId = data['assignedAdminId'] as String?;
+    final assignedAdminName =
+        data['assignedAdminName'] as String? ??
+        (assignedAdminId != null
+            ? (await _loadAdminProfile(assignedAdminId))?.name
+            : null);
+
+    return ChatConversation(
+      id: doc.id,
+      userId: userId ?? '',
+      userName: resolvedName,
+      userEmail: resolvedEmail,
+      senderName: storedSenderName ?? userProfile.name,
+      senderEmail: storedSenderEmail ?? userProfile.email,
+      senderPhotoUrl: storedSenderPhoto ?? userProfile.photoUrl,
+      subject: data['subject'] as String? ?? 'Support request',
+      status: _parseStatus(data['status'] as String?),
+      priority: _parsePriority(data['priority'] as String?),
+      createdAt: createdAt ?? DateTime.now(),
+      lastMessageAt: lastMessageTime,
+      messages: _messagesCache[doc.id] ?? const [],
+      unreadCount: unreadMap,
+      assignedAdminId: assignedAdminId,
+      assignedAdminName: assignedAdminName,
+      lastMessagePreview: data['lastMessage'] as String?,
+      metadata: data['metadata'] as Map<String, dynamic>?,
+    );
+  }
+
+  Future<void> _listenToMessages(String chatId, String adminId) async {
+    await _messagesSubscription?.cancel();
+
+    final query = _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .orderBy('timestamp', descending: false);
+
+    _messagesSubscription = query.snapshots().listen((snapshot) async {
+      final conversation = _conversationCache[chatId];
+      final userProfile =
+          conversation != null
+              ? await _loadUserProfile(conversation.userId)
+              : null;
+      final adminProfile = await _loadAdminProfile(adminId);
+
+      final messages =
+          snapshot.docs.map((doc) {
+            final data = doc.data();
+            final senderId = data['senderId'] as String? ?? 'unknown';
+            final senderRole =
+                senderId == adminId || senderId == 'admin' ? 'admin' : 'user';
+
+            final senderName =
+                senderRole == 'admin'
+                    ? (data['senderName'] as String?) ??
+                        adminProfile?.name ??
+                        'Admin'
+                    : (data['senderName'] as String?) ??
+                        userProfile?.name ??
+                        'User';
+            final senderEmail =
+                (data['senderEmail'] as String?) ??
+                (senderRole == 'admin'
+                    ? adminProfile?.email
+                    : userProfile?.email);
+            final senderPhoto =
+                (data['senderPhotoUrl'] as String?) ??
+                (senderRole == 'admin'
+                    ? adminProfile?.photoUrl
+                    : userProfile?.photoUrl);
+
+            return ChatMessage(
+              id: doc.id,
+              conversationId: chatId,
+              senderId: senderId,
+              senderName: senderName,
+              senderRole: senderRole,
+              senderEmail: senderEmail,
+              senderPhotoUrl: senderPhoto,
+              content: data['text'] as String? ?? '',
+              type: _parseMessageType(data['type'] as String?),
+              status: _parseMessageStatus(data['status'] as String?),
+              timestamp: _toDateTime(data['timestamp']) ?? DateTime.now(),
+              isRead:
+                  senderRole == 'admin' ||
+                  (_parseMessageStatus(data['status'] as String?)) ==
+                      ChatMessageStatus.seen,
+              metadata: (data['metadata'] as Map<String, dynamic>?),
+              attachments:
+                  (data['attachments'] as List?)
+                      ?.map(
+                        (a) => ChatAttachment.fromJson(
+                          Map<String, dynamic>.from(a as Map),
+                        ),
+                      )
+                      .toList(),
+              replyToId: data['replyToId'] as String?,
+            );
+          }).toList();
+
+      _messagesCache[chatId] = messages;
+
+      final existing = _conversationCache[chatId];
+      if (existing != null) {
+        final updated = existing.copyWith(messages: messages);
+        _conversationCache[chatId] = updated;
+        if (_activeConversationId == chatId) {
+          _activeConversation = updated;
+          _activeConversationController.add(updated);
+        }
+      }
+
+      await markConversationAsRead(chatId);
+    }, onError: (error) => _activeConversationController.addError(error));
+  }
+
+  String _requireAdminId() {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('Admin must be authenticated to use chat services.');
+    }
+    return user.uid;
+  }
+
+  Future<_UserProfile?> _loadUserProfile(String userId) async {
+    if (_userCache.containsKey(userId)) {
+      return _userCache[userId];
+    }
+
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      if (doc.exists) {
+        final profile = _UserProfile.fromMap(
+          doc.data() ?? {},
+          fallbackId: doc.id,
+        );
+        _userCache[userId] = profile;
+        return profile;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<_UserProfile?> _loadAdminProfile(String adminId) async {
+    if (_adminCache.containsKey(adminId)) {
+      return _adminCache[adminId];
+    }
+
+    try {
+      final doc = await _firestore.collection('admins').doc(adminId).get();
+      if (doc.exists) {
+        final profile = _UserProfile.fromMap(
+          doc.data() ?? {},
+          fallbackId: doc.id,
+        );
+        _adminCache[adminId] = profile;
+        return profile;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  String? _resolveUserId(List<String> participants, String adminId) {
+    for (final participant in participants) {
+      if (participant == adminId || participant == 'admin') continue;
+      return participant;
+    }
+    return null;
+  }
+
+  DateTime? _toDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    }
+    return null;
+  }
+
+  ChatStatus _parseStatus(String? value) {
+    return ChatStatus.values.firstWhere(
+      (s) => s.name == value,
+      orElse: () => ChatStatus.open,
+    );
+  }
+
+  ChatPriority _parsePriority(String? value) {
+    return ChatPriority.values.firstWhere(
+      (s) => s.name == value,
+      orElse: () => ChatPriority.normal,
+    );
+  }
+
+  ChatMessageType _parseMessageType(String? value) {
+    return ChatMessageType.values.firstWhere(
+      (s) => s.name == value,
+      orElse: () => ChatMessageType.text,
+    );
+  }
+
+  ChatMessageStatus _parseMessageStatus(String? value) {
+    return ChatMessageStatus.values.firstWhere(
+      (s) => s.name == value,
+      orElse: () => ChatMessageStatus.sent,
+    );
+  }
+
+  String _buildPreviewFromMessage(
+    ChatMessageType type,
+    String text,
+    List<ChatAttachment>? attachments,
+  ) {
+    switch (type) {
+      case ChatMessageType.text:
+        return text.length > 100 ? '${text.substring(0, 100)}…' : text;
+      case ChatMessageType.image:
+        return attachments != null && attachments.isNotEmpty
+            ? '📷 ${attachments.first.name}'
+            : '📷 Image';
+      case ChatMessageType.file:
+        return attachments != null && attachments.isNotEmpty
+            ? '📎 ${attachments.first.name}'
+            : '📎 File';
+      case ChatMessageType.system:
+        return text;
+    }
+  }
+
+  // endregion -----------------------------------------------------------------
+}
+
+class _UserProfile {
+  final String? id;
+  final String? name;
+  final String? email;
+  final String? photoUrl;
+
+  const _UserProfile({this.id, this.name, this.email, this.photoUrl});
+
+  factory _UserProfile.fromMap(
+    Map<String, dynamic> data, {
+    String? fallbackId,
+  }) {
+    final profileName =
+        data['name'] as String? ??
+        data['full_name'] as String? ??
+        data['firstName'] as String?;
+    final lastName = data['lastName'] as String?;
+    final middleName = data['middleName'] as String?;
+
+    final buffer = StringBuffer();
+    if (profileName != null && profileName.isNotEmpty) {
+      buffer.write(profileName);
+    }
+    if (middleName != null && middleName.isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.write(' ');
+      buffer.write(middleName);
+    }
+    if (lastName != null && lastName.isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.write(' ');
+      buffer.write(lastName);
+    }
+
+    final resolvedName =
+        buffer.isNotEmpty
+            ? buffer.toString()
+            : (data['email'] as String?)?.split('@').first ??
+                fallbackId ??
+                'User';
+
+    return _UserProfile(
+      id: data['id'] as String? ?? fallbackId,
+      name: resolvedName,
+      email: data['email'] as String?,
+      photoUrl: data['photoUrl'] as String? ?? data['photo_url'] as String?,
+    );
   }
 }

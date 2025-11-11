@@ -18,7 +18,10 @@ class ChatBubble extends StatelessWidget {
             isAdmin ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!isAdmin) ...[_buildAvatar(), const SizedBox(width: 8)],
+          if (!isAdmin) ...[
+            _buildAvatar(message.senderPhotoUrl),
+            const SizedBox(width: 8),
+          ],
           Flexible(
             child: Column(
               crossAxisAlignment:
@@ -62,9 +65,16 @@ class ChatBubble extends StatelessWidget {
                         ),
                       if (!isAdmin) const SizedBox(height: 4),
                       Text(
-                        message.content,
+                        message.content.isEmpty
+                            ? (message.metadata?['placeholder'] as String?) ??
+                                '[Message unavailable]'
+                            : message.content,
                         style: ResponsiveText.body(context).copyWith(
                           color: isAdmin ? Colors.white : AppColor.textPrimary,
+                          fontStyle:
+                              message.metadata?['unsent'] == true
+                                  ? FontStyle.italic
+                                  : FontStyle.normal,
                         ),
                       ),
                       if (message.attachments != null &&
@@ -85,58 +95,80 @@ class ChatBubble extends StatelessWidget {
                     ),
                     if (isAdmin) ...[
                       const SizedBox(width: 4),
-                      Icon(
-                        message.isRead ? Iconsax.tick_circle : Iconsax.clock,
-                        size: 12,
-                        color:
-                            message.isRead
-                                ? AppColor.accentGreen
-                                : AppColor.textSecondary,
-                      ),
+                      Icon(_statusIcon, size: 12, color: _statusColor),
                     ],
                   ],
                 ),
               ],
             ),
           ),
-          if (isAdmin) ...[const SizedBox(width: 8), _buildAvatar()],
+          if (isAdmin) const SizedBox(width: 8),
         ],
       ),
     );
   }
 
-  Widget _buildAvatar() {
+  Widget _buildAvatar(String? photoUrl, {String? fallbackInitials}) {
+    final initials =
+        fallbackInitials ??
+        message.senderName.split(' ').map((e) => e[0]).take(2).join();
     return CircleAvatar(
       radius: 16,
       backgroundColor: isAdmin ? AppColor.accentGreen : AppColor.primary,
-      child: Text(
-        message.senderName.split(' ').map((e) => e[0]).take(2).join(),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      backgroundImage:
+          photoUrl != null && photoUrl.isNotEmpty
+              ? NetworkImage(photoUrl)
+              : null,
+      child:
+          (photoUrl == null || photoUrl.isEmpty)
+              ? Text(
+                initials,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              )
+              : null,
     );
   }
 
   List<Widget> _buildAttachments() {
     return message.attachments!.map((attachment) {
+      final isImage =
+          attachment.type == 'image' ||
+          (attachment.mimeType?.startsWith('image/') ?? false);
+      final icon = isImage ? Iconsax.image : Iconsax.document;
+      final name =
+          attachment.name.isNotEmpty ? attachment.name : attachment.url;
+
       return Container(
         margin: const EdgeInsets.only(top: 8),
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.white.withAlpha(51),
+          color: isAdmin ? Colors.white.withAlpha(25) : Colors.grey.shade200,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Iconsax.document, size: 16, color: Colors.white),
+            Icon(
+              icon,
+              size: 16,
+              color: isAdmin ? Colors.white : AppColor.textPrimary,
+            ),
             const SizedBox(width: 8),
-            Text(
-              attachment,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
+            SizedBox(
+              width: 160,
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isAdmin ? Colors.white : AppColor.textPrimary,
+                  fontSize: 12,
+                ),
+              ),
             ),
           ],
         ),
@@ -156,6 +188,32 @@ class ChatBubble extends StatelessWidget {
       return '${difference.inMinutes}m ago';
     } else {
       return 'Just now';
+    }
+  }
+
+  IconData get _statusIcon {
+    switch (message.status) {
+      case ChatMessageStatus.sending:
+        return Iconsax.clock;
+      case ChatMessageStatus.sent:
+        return Iconsax.tick_square;
+      case ChatMessageStatus.delivered:
+        return Iconsax.tick_square;
+      case ChatMessageStatus.seen:
+        return Iconsax.tick_circle;
+      case ChatMessageStatus.error:
+        return Iconsax.info_circle;
+    }
+  }
+
+  Color get _statusColor {
+    switch (message.status) {
+      case ChatMessageStatus.seen:
+        return AppColor.accentGreen;
+      case ChatMessageStatus.error:
+        return AppColor.accentRed;
+      default:
+        return AppColor.textSecondary;
     }
   }
 }
@@ -323,18 +381,24 @@ class _ChatInputState extends State<ChatInput> {
 
 class ConversationListItem extends StatelessWidget {
   final ChatConversation conversation;
+  final String? adminId;
   final bool isSelected;
   final VoidCallback onTap;
 
   const ConversationListItem({
     super.key,
     required this.conversation,
+    required this.adminId,
     required this.isSelected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final displayName = conversation.senderName ?? conversation.userName;
+    final displayEmail =
+        conversation.senderEmail ?? conversation.userEmail ?? '';
+    final photoUrl = conversation.senderPhotoUrl;
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -352,19 +416,28 @@ class ConversationListItem extends StatelessWidget {
                 CircleAvatar(
                   radius: 24,
                   backgroundColor: _getPriorityColor(),
-                  child: Text(
-                    conversation.userName
-                        .split(' ')
-                        .map((e) => e[0])
-                        .take(2)
-                        .join(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  backgroundImage:
+                      photoUrl != null && photoUrl.isNotEmpty
+                          ? NetworkImage(photoUrl)
+                          : null,
+                  child:
+                      (photoUrl == null || photoUrl.isEmpty)
+                          ? Text(
+                            displayName
+                                .split(' ')
+                                .where((e) => e.isNotEmpty)
+                                .map((e) => e[0])
+                                .take(2)
+                                .join()
+                                .toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                          : null,
                 ),
-                if (conversation.unreadCount > 0)
+                if (_unreadCount > 0)
                   Positioned(
                     right: 0,
                     top: 0,
@@ -379,9 +452,7 @@ class ConversationListItem extends StatelessWidget {
                         minHeight: 20,
                       ),
                       child: Text(
-                        conversation.unreadCount > 9
-                            ? '9+'
-                            : '${conversation.unreadCount}',
+                        _unreadCount > 9 ? '9+' : '$_unreadCount',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,
@@ -402,10 +473,10 @@ class ConversationListItem extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          conversation.userName,
+                          displayName,
                           style: ResponsiveText.body(context).copyWith(
                             fontWeight:
-                                conversation.unreadCount > 0
+                                _unreadCount > 0
                                     ? FontWeight.bold
                                     : FontWeight.w500,
                           ),
@@ -414,13 +485,24 @@ class ConversationListItem extends StatelessWidget {
                       _buildStatusChip(),
                     ],
                   ),
+                  if (displayEmail.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      displayEmail,
+                      style: ResponsiveText.caption(
+                        context,
+                      ).copyWith(color: AppColor.textSecondary),
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text(
-                    conversation.subject,
+                    conversation.lastMessagePreview ??
+                        conversation.subject ??
+                        'No messages yet',
                     style: ResponsiveText.body(context).copyWith(
                       color: AppColor.textSecondary,
                       fontWeight:
-                          conversation.unreadCount > 0
+                          _unreadCount > 0
                               ? FontWeight.w500
                               : FontWeight.normal,
                     ),
@@ -515,6 +597,11 @@ class ConversationListItem extends StatelessWidget {
       case ChatPriority.urgent:
         return AppColor.accentRed;
     }
+  }
+
+  int get _unreadCount {
+    final key = adminId ?? 'admin';
+    return conversation.unreadFor(key);
   }
 
   String _formatTime(DateTime dateTime) {

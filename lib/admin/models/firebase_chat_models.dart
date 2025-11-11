@@ -227,6 +227,9 @@ class FirebaseChat {
   final ChatPriority priority;
   final String? assignedAdminId;
   final Map<String, dynamic>? metadata;
+  final String? senderName;
+  final String? senderEmail;
+  final String? senderPhotoUrl;
 
   FirebaseChat({
     required this.id,
@@ -240,6 +243,9 @@ class FirebaseChat {
     this.priority = ChatPriority.normal,
     this.assignedAdminId,
     this.metadata,
+    this.senderName,
+    this.senderEmail,
+    this.senderPhotoUrl,
   });
 
   Map<String, dynamic> toJson() {
@@ -255,6 +261,9 @@ class FirebaseChat {
       'priority': priority.name,
       'assignedAdminId': assignedAdminId,
       'metadata': metadata,
+      if (senderName != null) 'senderName': senderName,
+      if (senderEmail != null) 'senderEmail': senderEmail,
+      if (senderPhotoUrl != null) 'senderPhotoUrl': senderPhotoUrl,
     };
   }
 
@@ -278,6 +287,9 @@ class FirebaseChat {
       ),
       assignedAdminId: json['assignedAdminId'],
       metadata: json['metadata'],
+      senderName: json['senderName'] as String?,
+      senderEmail: json['senderEmail'] as String?,
+      senderPhotoUrl: json['senderPhotoUrl'] as String?,
     );
   }
 
@@ -293,6 +305,9 @@ class FirebaseChat {
     ChatPriority? priority,
     String? assignedAdminId,
     Map<String, dynamic>? metadata,
+    String? senderName,
+    String? senderEmail,
+    String? senderPhotoUrl,
   }) {
     return FirebaseChat(
       id: id ?? this.id,
@@ -306,6 +321,9 @@ class FirebaseChat {
       priority: priority ?? this.priority,
       assignedAdminId: assignedAdminId ?? this.assignedAdminId,
       metadata: metadata ?? this.metadata,
+      senderName: senderName ?? this.senderName,
+      senderEmail: senderEmail ?? this.senderEmail,
+      senderPhotoUrl: senderPhotoUrl ?? this.senderPhotoUrl,
     );
   }
 }
@@ -324,6 +342,8 @@ class FirebaseChatMessage {
   final String? replyToId;
   final Map<String, dynamic>? metadata;
   final List<MessageAttachment>? attachments;
+  final String? senderEmail;
+  final String? senderPhotoUrl;
 
   FirebaseChatMessage({
     required this.id,
@@ -337,6 +357,8 @@ class FirebaseChatMessage {
     this.replyToId,
     this.metadata,
     this.attachments,
+    this.senderEmail,
+    this.senderPhotoUrl,
   });
 
   Map<String, dynamic> toJson() {
@@ -344,6 +366,7 @@ class FirebaseChatMessage {
       'id': id,
       'chatId': chatId,
       'senderId': senderId, // Primary field (matches database structure)
+      'senderName': sender ?? senderId,
       'text': text,
       'timestamp': Timestamp.fromDate(
         timestamp,
@@ -357,6 +380,8 @@ class FirebaseChatMessage {
       'metadata': metadata,
       'attachments': attachments?.map((a) => a.toJson()).toList(),
       if (sender != null) 'sender': sender, // Keep for backward compatibility
+      if (senderEmail != null) 'senderEmail': senderEmail,
+      if (senderPhotoUrl != null) 'senderPhotoUrl': senderPhotoUrl,
     };
   }
 
@@ -385,7 +410,10 @@ class FirebaseChatMessage {
     }
 
     // Derive sender from senderId for backward compatibility
-    final senderValue = json['sender'] as String? ?? senderIdValue;
+    final senderValue =
+        json['sender'] as String? ??
+        json['senderName'] as String? ??
+        senderIdValue;
 
     // Handle unsent messages - display "[Message unsent]" if metadata.unsent is true
     String messageText = json['text'] ?? '';
@@ -415,6 +443,8 @@ class FirebaseChatMessage {
           (json['attachments'] as List?)
               ?.map((a) => MessageAttachment.fromJson(a))
               .toList(),
+      senderEmail: json['senderEmail'] as String?,
+      senderPhotoUrl: json['senderPhotoUrl'] as String?,
     );
   }
 

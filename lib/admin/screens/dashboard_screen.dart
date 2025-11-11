@@ -252,11 +252,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await _notificationService.createNotificationForAllAdmins(
         type: 'new_user',
         title: 'New User Registered',
-        message:
-            userEmail.isNotEmpty
-                ? '$userName ($userEmail) has joined EnergySmart'
-                : '$userName has joined EnergySmart',
-        data: {'userId': userId, 'userName': userName, 'userEmail': userEmail},
+        userId: userId,
+        userEmail: userEmail,
+        userName: userName,
+        extraData: {'source': 'realtime_db'},
       );
 
       Logger.info('New user notification created for: $userName');

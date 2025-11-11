@@ -1,6 +1,10 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../constants/constant.dart';
+import '../models/chat_message_model.dart';
 import '../services/chat_service.dart';
 
 class FloatingChatButton extends StatefulWidget {
@@ -15,10 +19,12 @@ class FloatingChatButton extends StatefulWidget {
 class _FloatingChatButtonState extends State<FloatingChatButton>
     with SingleTickerProviderStateMixin {
   final ChatService _chatService = ChatService();
+  StreamSubscription<List<ChatConversation>>? _conversationSubscription;
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _rotationAnimation;
   int _unreadCount = 0;
+  String? _adminId;
 
   @override
   void initState() {
@@ -36,25 +42,7 @@ class _FloatingChatButtonState extends State<FloatingChatButton>
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
 
-    // Listen to chat service for unread count
-    _chatService.conversationsStream.listen((conversations) {
-      if (mounted) {
-        final newUnreadCount = _chatService.getTotalUnreadMessagesCount();
-        if (newUnreadCount != _unreadCount) {
-          setState(() {
-            _unreadCount = newUnreadCount;
-          });
-
-          // Animate when new messages arrive
-          if (newUnreadCount > _unreadCount) {
-            _animateButton();
-          }
-        }
-      }
-    });
-
-    // Initialize unread count
-    _unreadCount = _chatService.getTotalUnreadMessagesCount();
+    _initializeListener();
   }
 
   void _animateButton() {
@@ -63,8 +51,50 @@ class _FloatingChatButtonState extends State<FloatingChatButton>
     });
   }
 
+  Future<void> _initializeListener() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await _chatService.initialize();
+
+    _adminId = user.uid;
+    _setUnreadCount();
+
+    _conversationSubscription = _chatService.conversationsStream.listen((
+      conversations,
+    ) {
+      if (!mounted || _adminId == null) return;
+
+      final newUnreadCount = _chatService.getTotalUnreadMessagesCount(
+        _adminId!,
+      );
+      if (newUnreadCount != _unreadCount) {
+        final previousCount = _unreadCount;
+        setState(() {
+          _unreadCount = newUnreadCount;
+        });
+
+        // Animate when new messages arrive
+        if (newUnreadCount > previousCount) {
+          _animateButton();
+        }
+      }
+    });
+  }
+
+  void _setUnreadCount() {
+    if (_adminId == null) return;
+    final count = _chatService.getTotalUnreadMessagesCount(_adminId!);
+    if (count != _unreadCount && mounted) {
+      setState(() {
+        _unreadCount = count;
+      });
+    }
+  }
+
   @override
   void dispose() {
+    _conversationSubscription?.cancel();
     _animationController.dispose();
     super.dispose();
   }

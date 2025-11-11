@@ -10,10 +10,19 @@
       ]
     },
     {
-      "collectionGroup": "messages",
+      "collectionGroup": "chats",
       "queryScope": "COLLECTION",
       "fields": [
-        {"fieldPath": "timestamp", "order": "DESCENDING"}
+        {"fieldPath": "participants", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "lastMessageTime", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "chats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "participants", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
       ]
     },
     {

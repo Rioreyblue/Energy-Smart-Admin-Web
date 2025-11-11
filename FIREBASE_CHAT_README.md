@@ -122,7 +122,10 @@ flutter run
   "status": "active|archived|closed",
   "priority": "low|normal|high|urgent",
   "assignedAdminId": "string?",
-  "metadata": "object?"
+  "metadata": "object?",
+  "senderName": "string?",
+  "senderEmail": "string?",
+  "senderPhotoUrl": "string?"
 }
 ```
 
@@ -145,7 +148,10 @@ flutter run
       "size": "number",
       "mimeType": "string"
     }
-  ]
+  ],
+  "senderName": "string?",
+  "senderEmail": "string?",
+  "senderPhotoUrl": "string?"
 }
 ```
 

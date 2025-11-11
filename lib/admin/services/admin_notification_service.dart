@@ -74,38 +74,135 @@ class AdminNotificationService {
     }
   }
 
+  Future<Map<String, dynamic>> _fetchUserProfile(String userId) async {
+    try {
+      final userRef = _firestore.collection('users').doc(userId);
+      final profileDoc = await userRef.collection('profile').doc('main').get();
+      final userDoc = await userRef.get();
+
+      final profileData = profileDoc.data() ?? {};
+      final userData = userDoc.data() ?? {};
+
+      final sections = profileData['sections'] as Map<String, dynamic>? ?? {};
+
+      String? lookupSectionValue(String key) {
+        final section = sections[key] as Map<String, dynamic>? ?? {};
+        final value = section['value'];
+        return value is String ? value : null;
+      }
+
+      String combineName(Map<String, dynamic> data) {
+        final firstName = data['firstName']?.toString() ?? '';
+        final middleName = data['middleName']?.toString() ?? '';
+        final lastName = data['lastName']?.toString() ?? '';
+        final parts =
+            [
+              firstName,
+              middleName,
+              lastName,
+            ].where((part) => part.trim().isNotEmpty).toList();
+        return parts.isNotEmpty ? parts.join(' ').trim() : '';
+      }
+
+      String? normalize(String? value) =>
+          (value != null && value.trim().isNotEmpty) ? value.trim() : null;
+
+      final sectionName = normalize(lookupSectionValue('name'));
+      final profileName = normalize(profileData['name'] as String?);
+      final combinedName = normalize(combineName(userData));
+      final fallbackName = normalize(
+        (userData['email'] as String?)?.split('@').first,
+      );
+
+      final name =
+          sectionName ?? profileName ?? combinedName ?? fallbackName ?? '';
+
+      final email =
+          normalize(lookupSectionValue('email')) ??
+          normalize(profileData['email'] as String?) ??
+          normalize(userData['email'] as String?) ??
+          '';
+
+      final userType =
+          normalize(lookupSectionValue('type')) ??
+          normalize(profileData['type'] as String?) ??
+          normalize(userData['type'] as String?) ??
+          normalize(userData['role'] as String?) ??
+          '';
+
+      return {'name': name, 'email': email, 'type': userType};
+    } catch (e, stackTrace) {
+      Logger.error('Error fetching user profile for $userId', e, stackTrace);
+      return {};
+    }
+  }
+
+  Future<String> _buildNewUserMessage(String? name, String? userType) async {
+    final displayName =
+        (name?.trim().isNotEmpty ?? false) ? name!.trim() : 'A user';
+    final displayType =
+        (userType?.trim().isNotEmpty ?? false)
+            ? userType!.trim()
+            : 'EnergySmart';
+    return '$displayName has joined $displayType';
+  }
+
   /// Create notifications for all admins
   Future<void> createNotificationForAllAdmins({
     required String type,
     required String title,
-    required String message,
-    Map<String, dynamic>? data,
+    required String userId,
+    required String userEmail,
+    String? userName,
+    Map<String, dynamic>? extraData,
   }) async {
     try {
-      // Get all admin IDs
-      final adminsSnapshot = await _firestore.collection('admins').get();
-      final adminIds = adminsSnapshot.docs.map((doc) => doc.id).toList();
+      final profile = await _fetchUserProfile(userId);
+      final resolvedName =
+          (profile['name'] as String?)?.trim().isNotEmpty ?? false
+              ? (profile['name'] as String).trim()
+              : (userName?.trim().isNotEmpty ?? false)
+              ? userName!.trim()
+              : userEmail;
+      final resolvedEmail =
+          (profile['email'] as String?)?.trim().isNotEmpty ?? false
+              ? (profile['email'] as String).trim()
+              : userEmail;
+      final resolvedType = profile['type'] as String?;
 
-      // Create notification for each admin
+      final message = await _buildNewUserMessage(resolvedName, resolvedType);
+      final data = {
+        'userId': userId,
+        'userEmail': resolvedEmail,
+        'userName': resolvedName,
+        'userType': resolvedType,
+        'type': type,
+        ...?extraData,
+      };
+
+      final adminsSnapshot = await _firestore.collection('admins').get();
       final batch = _firestore.batch();
-      for (final adminId in adminIds) {
+      for (final adminDoc in adminsSnapshot.docs) {
         final notificationRef = _firestore.collection('notifications').doc();
         batch.set(notificationRef, {
-          'adminId': adminId,
+          'adminId': adminDoc.id,
           'type': type,
           'title': title,
           'message': message,
           'read': false,
           'timestamp': FieldValue.serverTimestamp(),
-          'data': data ?? {},
+          'data': data,
         });
       }
       await batch.commit();
 
-      // Send OneSignal push notifications to all admins
       await _sendPushNotificationToAllAdmins(title, message, data);
-    } catch (e) {
-      Logger.error('Error creating notifications for all admins', e);
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Error creating notifications for all admins',
+        e,
+        stackTrace,
+      );
     }
   }
 

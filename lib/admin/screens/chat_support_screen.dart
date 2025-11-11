@@ -1,10 +1,14 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
+
 import '../../constants/constant.dart';
 import '../models/chat_message_model.dart';
 import '../services/chat_service.dart';
-import '../widgets/chat_widgets.dart';
 import '../utils/responsive_layout.dart';
+import '../widgets/chat_widgets.dart';
 
 class ChatSupportScreen extends StatefulWidget {
   const ChatSupportScreen({super.key});
@@ -18,6 +22,10 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
   List<ChatConversation> _conversations = [];
   ChatConversation? _selectedConversation;
   bool _isLoading = true;
+  Object? _error;
+  String? _adminId;
+  StreamSubscription<List<ChatConversation>>? _conversationSub;
+  StreamSubscription<ChatConversation?>? _activeConversationSub;
 
   @override
   void initState() {
@@ -25,39 +33,109 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
     _initializeChat();
   }
 
-  void _initializeChat() {
-    _chatService.initialize();
-    _conversations = _chatService.getConversations();
-
-    // Listen to conversations stream
-    _chatService.conversationsStream.listen((conversations) {
-      if (mounted) {
-        setState(() {
-          _conversations = conversations;
-        });
-      }
-    });
-
-    // Listen to active conversation stream
-    _chatService.activeConversationStream.listen((conversation) {
-      if (mounted) {
-        setState(() {
-          _selectedConversation = conversation;
-        });
-      }
-    });
-
+  Future<void> _initializeChat() async {
     setState(() {
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
+
+    try {
+      _adminId = FirebaseAuth.instance.currentUser?.uid;
+      await _chatService.initialize();
+
+      _conversationSub?.cancel();
+      _conversationSub = _chatService.conversationsStream.listen(
+        (conversations) {
+          if (!mounted) return;
+          setState(() {
+            _conversations = conversations;
+            _isLoading = false;
+          });
+        },
+        onError: (error) {
+          if (!mounted) return;
+          setState(() {
+            _error = error;
+            _isLoading = false;
+          });
+        },
+      );
+
+      _activeConversationSub?.cancel();
+      _activeConversationSub = _chatService.activeConversationStream.listen(
+        (conversation) {
+          if (!mounted) return;
+          setState(() {
+            _selectedConversation = conversation;
+          });
+        },
+        onError: (error) {
+          if (!mounted) return;
+          setState(() {
+            _error = error;
+          });
+        },
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppColor.accentGreen),
+      return const Scaffold(
+        backgroundColor: AppColor.surface,
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(AppColor.accentGreen),
+          ),
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: AppColor.surface,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Iconsax.warning_2,
+                size: 48,
+                color: AppColor.accentRed,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Unable to load conversations',
+                style: ResponsiveText.title(context),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '$_error',
+                style: ResponsiveText.body(
+                  context,
+                ).copyWith(color: AppColor.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _initializeChat,
+                icon: const Icon(Iconsax.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -109,6 +187,7 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
                         final conversation = _conversations[index];
                         return ConversationListItem(
                           conversation: conversation,
+                          adminId: _adminId,
                           isSelected:
                               _selectedConversation?.id == conversation.id,
                           onTap: () => _selectConversation(conversation),
@@ -193,7 +272,7 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
           const SizedBox(width: 8),
           _buildFilterChip(
             'Unread',
-            _conversations.where((c) => c.unreadCount > 0).length,
+            _conversations.where((c) => _unreadCountFor(c) > 0).length,
             false,
           ),
         ],
@@ -251,6 +330,8 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
       return _buildEmptyState();
     }
 
+    final messages = _selectedConversation!.messages;
+
     return Column(
       children: [
         _buildChatHeader(),
@@ -259,9 +340,9 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
             color: Colors.grey.shade50,
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              itemCount: _selectedConversation!.messages.length,
+              itemCount: messages.length,
               itemBuilder: (context, index) {
-                final message = _selectedConversation!.messages[index];
+                final message = messages[index];
                 return ChatBubble(
                   message: message,
                   isAdmin: message.senderRole == 'admin',
@@ -279,6 +360,11 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
   }
 
   Widget _buildChatHeader() {
+    final conversation = _selectedConversation!;
+    final displayName = conversation.senderName ?? conversation.userName;
+    final displayEmail =
+        conversation.senderEmail ?? conversation.userEmail ?? '';
+    final photoUrl = conversation.senderPhotoUrl;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -298,17 +384,26 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
             ),
           CircleAvatar(
             backgroundColor: AppColor.primary,
-            child: Text(
-              _selectedConversation!.userName
-                  .split(' ')
-                  .map((e) => e[0])
-                  .take(2)
-                  .join(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            backgroundImage:
+                photoUrl != null && photoUrl.isNotEmpty
+                    ? NetworkImage(photoUrl)
+                    : null,
+            child:
+                (photoUrl == null || photoUrl.isEmpty)
+                    ? Text(
+                      displayName
+                          .split(' ')
+                          .where((e) => e.isNotEmpty)
+                          .map((e) => e[0])
+                          .take(2)
+                          .join()
+                          .toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                    : null,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -316,17 +411,32 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _selectedConversation!.userName,
+                  displayName,
                   style: ResponsiveText.body(
                     context,
                   ).copyWith(fontWeight: FontWeight.bold),
                 ),
-                Text(
-                  _selectedConversation!.subject,
-                  style: ResponsiveText.caption(
-                    context,
-                  ).copyWith(color: AppColor.textSecondary),
-                ),
+                if (displayEmail.isNotEmpty)
+                  Text(
+                    displayEmail,
+                    style: ResponsiveText.caption(
+                      context,
+                    ).copyWith(color: AppColor.textSecondary),
+                  ),
+                if (conversation.subject != null)
+                  Text(
+                    conversation.subject!,
+                    style: ResponsiveText.caption(
+                      context,
+                    ).copyWith(color: AppColor.textSecondary),
+                  ),
+                if (displayEmail.isEmpty && conversation.subject == null)
+                  Text(
+                    'Support conversation',
+                    style: ResponsiveText.caption(
+                      context,
+                    ).copyWith(color: AppColor.textSecondary),
+                  ),
               ],
             ),
           ),
@@ -435,13 +545,13 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
     _chatService.setActiveConversation(conversation.id);
   }
 
-  void _sendMessage(String message) {
-    if (_selectedConversation != null) {
-      _chatService.sendMessage(
-        conversationId: _selectedConversation!.id,
-        content: message,
-      );
-    }
+  Future<void> _sendMessage(String message) async {
+    final conversation = _selectedConversation;
+    if (conversation == null) return;
+    await _chatService.sendMessage(
+      conversationId: conversation.id,
+      content: message,
+    );
   }
 
   void _handleChatAction(String action) {
@@ -474,14 +584,13 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
                       title: Text(status.name.toUpperCase()),
                       value: status,
                       groupValue: _selectedConversation!.status,
-                      onChanged: (value) {
-                        if (value != null) {
-                          _chatService.updateConversationStatus(
-                            _selectedConversation!.id,
-                            value,
-                          );
-                          Navigator.pop(context);
-                        }
+                      onChanged: (value) async {
+                        if (value == null) return;
+                        Navigator.pop(context);
+                        await _chatService.updateConversationStatus(
+                          _selectedConversation!.id,
+                          value,
+                        );
                       },
                     );
                   }).toList(),
@@ -504,14 +613,13 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
                       title: Text(priority.name.toUpperCase()),
                       value: priority,
                       groupValue: _selectedConversation!.priority,
-                      onChanged: (value) {
-                        if (value != null) {
-                          _chatService.updateConversationPriority(
-                            _selectedConversation!.id,
-                            value,
-                          );
-                          Navigator.pop(context);
-                        }
+                      onChanged: (value) async {
+                        if (value == null) return;
+                        Navigator.pop(context);
+                        await _chatService.updateConversationPriority(
+                          _selectedConversation!.id,
+                          value,
+                        );
                       },
                     );
                   }).toList(),
@@ -526,13 +634,44 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
       builder:
           (context) => AlertDialog(
             title: const Text('Assign to Admin'),
-            content: const Text(
-              'This feature will be implemented with user management.',
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_adminId != null)
+                  ListTile(
+                    leading: const Icon(Iconsax.user_add),
+                    title: const Text('Assign to me'),
+                    subtitle: const Text('Take ownership of this chat'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _chatService.assignConversation(
+                        _selectedConversation!.id,
+                        _adminId!,
+                      );
+                    },
+                  ),
+                if (_selectedConversation!.assignedAdminId != null)
+                  ListTile(
+                    leading: const Icon(Iconsax.user_remove),
+                    title: const Text('Unassign conversation'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _chatService.unassignConversation(
+                        _selectedConversation!.id,
+                      );
+                    },
+                  ),
+                const SizedBox(height: 8),
+                const Text(
+                  'More assignment options will be available once admin management is enabled.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: const Text('Close'),
               ),
             ],
           ),
@@ -580,7 +719,14 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
 
   @override
   void dispose() {
+    _conversationSub?.cancel();
+    _activeConversationSub?.cancel();
     _chatService.dispose();
     super.dispose();
+  }
+
+  int _unreadCountFor(ChatConversation conversation) {
+    final adminKey = _adminId ?? 'admin';
+    return conversation.unreadFor(adminKey);
   }
 }

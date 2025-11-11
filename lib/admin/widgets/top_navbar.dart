@@ -11,7 +11,7 @@ import '../auth/admin_auth_service.dart';
 import '../auth/admin_login_screen.dart';
 import '../screens/admin_profile_screen.dart';
 import '../screens/users_screen.dart';
-import '../screens/firebase_chat_screen.dart';
+import '../screens/chat_support_screen.dart';
 import '../../utils/logger.dart';
 
 class TopNavbar extends StatefulWidget {
@@ -461,7 +461,7 @@ class _TopNavbarState extends State<TopNavbar> {
         } else if (type == 'chat_message' && data['chatId'] != null) {
           // Navigate to chat screen
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const FirebaseChatScreen()),
+            MaterialPageRoute(builder: (context) => const ChatSupportScreen()),
           );
         }
       },

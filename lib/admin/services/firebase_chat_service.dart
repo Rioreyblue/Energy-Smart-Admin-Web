@@ -1628,6 +1628,27 @@ class FirebaseChatService {
       final data = doc.data();
       final parts = List<String>.from(data['participants'] ?? []);
       if (parts.length == 2 && parts.contains(userId)) {
+        final needsName = (data['senderName'] as String?)?.isEmpty ?? true;
+        final needsEmail = data['senderEmail'] == null;
+        final needsPhoto = data['senderPhotoUrl'] == null;
+        if (needsName || needsEmail || needsPhoto) {
+          final user = await _getUserForChat(userId);
+          if (user != null) {
+            final updates = <String, dynamic>{};
+            if (needsName && user.name.isNotEmpty) {
+              updates['senderName'] = user.name;
+            }
+            if (needsEmail && user.email.isNotEmpty) {
+              updates['senderEmail'] = user.email;
+            }
+            if (needsPhoto && user.photoUrl != null) {
+              updates['senderPhotoUrl'] = user.photoUrl;
+            }
+            if (updates.isNotEmpty) {
+              await doc.reference.set(updates, SetOptions(merge: true));
+            }
+          }
+        }
         return doc.id;
       }
     }
@@ -1656,8 +1677,13 @@ class FirebaseChatService {
         .doc(messageId);
 
     // Create message document with senderId field (per admin guide)
+    final senderName = _currentUser!.name;
     await messageRef.set({
       'senderId': 'admin', // Use senderId field (per admin guide)
+      'senderName': senderName,
+      'senderEmail': _currentUser!.email,
+      if (_currentUser!.photoUrl != null)
+        'senderPhotoUrl': _currentUser!.photoUrl,
       'text': text,
       'timestamp': FieldValue.serverTimestamp(),
       'type': 'text',
@@ -1729,6 +1755,9 @@ class FirebaseChatService {
       id: messageId,
       chatId: chatId,
       senderId: 'admin', // Use senderId field (per admin guide)
+      sender: _currentUser!.name,
+      senderEmail: _currentUser!.email,
+      senderPhotoUrl: _currentUser!.photoUrl,
       text: text,
       timestamp: DateTime.now(),
       type: MessageType.text,
@@ -1809,6 +1838,10 @@ class FirebaseChatService {
     // Create message document with senderId field (per admin guide)
     await messageRef.set({
       'senderId': 'admin', // Use senderId field (per admin guide)
+      'senderName': _currentUser!.name,
+      'senderEmail': _currentUser!.email,
+      if (_currentUser!.photoUrl != null)
+        'senderPhotoUrl': _currentUser!.photoUrl,
       'text': caption ?? '',
       'timestamp': FieldValue.serverTimestamp(),
       'type': 'image',
@@ -1908,6 +1941,9 @@ class FirebaseChatService {
       id: messageId,
       chatId: chatId,
       senderId: 'admin', // Use senderId field (per admin guide)
+      sender: _currentUser!.name,
+      senderEmail: _currentUser!.email,
+      senderPhotoUrl: _currentUser!.photoUrl,
       text: caption ?? '',
       timestamp: DateTime.now(),
       type: MessageType.image,
@@ -1973,6 +2009,9 @@ class FirebaseChatService {
       id: messageId,
       chatId: chatId,
       senderId: 'admin', // Use senderId field (per admin guide)
+      sender: _currentUser!.name,
+      senderEmail: _currentUser!.email,
+      senderPhotoUrl: _currentUser!.photoUrl,
       text: fileName,
       timestamp: DateTime.now(),
       type: MessageType.file,
@@ -2007,6 +2046,7 @@ class FirebaseChatService {
   }) async {
     if (_currentUser == null) throw Exception('User not authenticated');
 
+    final otherUser = await _getUserForChat(userId);
     final chatId = _uuid.v4();
     // Include 'admin' string in participants array (matches database structure)
     // Also include admin user ID for compatibility
@@ -2030,6 +2070,9 @@ class FirebaseChatService {
       status: ChatStatus.active,
       priority: priority,
       assignedAdminId: _currentUser!.role == 'admin' ? _currentUser!.id : null,
+      senderName: otherUser?.name,
+      senderEmail: otherUser?.email,
+      senderPhotoUrl: otherUser?.photoUrl,
     );
 
     await _firestore.collection('chats').doc(chatId).set(chat.toJson());

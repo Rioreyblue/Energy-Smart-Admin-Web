@@ -3,12 +3,12 @@ import 'package:iconsax/iconsax.dart';
 import '../constants/constant.dart';
 import 'widgets/sidebar_menu.dart';
 import 'widgets/top_navbar.dart';
-import 'widgets/firebase_chat_fab.dart';
+import 'widgets/floating_chat_button.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/users_screen.dart';
 import 'screens/analytics_screen.dart';
 import 'screens/reports_screen.dart';
-import 'screens/firebase_chat_screen.dart';
+import 'screens/chat_support_screen.dart';
 import 'screens/settings_screen.dart';
 import 'utils/responsive_layout.dart';
 
@@ -28,7 +28,7 @@ class _MainAdminScreenState extends State<MainAdminScreen> {
     const UsersScreen(),
     const AnalyticsScreen(),
     const ReportsScreen(),
-    const FirebaseChatScreen(), // Use Firebase chat instead of mock chat
+    const ChatSupportScreen(), // Use the refactored Firestore-backed chat
     const SettingsScreen(),
   ];
 
@@ -43,7 +43,7 @@ class _MainAdminScreenState extends State<MainAdminScreen> {
       floatingActionButton:
           _selectedIndex !=
                   4 // Don't show FAB on chat screen
-              ? FirebaseChatFAB(
+              ? ChatSupportFAB(
                 onNavigateToChat: (index) {
                   setState(() {
                     _selectedIndex = index;
