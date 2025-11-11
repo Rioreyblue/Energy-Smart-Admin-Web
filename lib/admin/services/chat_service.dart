@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/chat_message_model.dart';
+import '../../utils/logger.dart';
 
 class ChatService {
   ChatService._internal();
@@ -268,27 +269,42 @@ class ChatService {
     final participants = List<String>.from(data['participants'] ?? []);
     final userId = _resolveUserId(participants, adminId) ?? data['userId'];
 
-    final storedSenderName = data['senderName'] as String?;
-    final storedSenderEmail = data['senderEmail'] as String?;
-    final storedSenderPhoto = data['senderPhotoUrl'] as String?;
+    final storedSenderName = (data['senderName'] as String?)?.trim();
+    final storedSenderEmail = (data['senderEmail'] as String?)?.trim();
+    final storedSenderPhoto = (data['senderPhotoUrl'] as String?)?.trim();
 
     final userProfile =
         userId != null
             ? (await _loadUserProfile(userId)) ?? const _UserProfile()
             : const _UserProfile();
 
-    final resolvedName = storedSenderName ?? userProfile.name ?? 'User';
-    final resolvedEmail = storedSenderEmail ?? userProfile.email;
+    String? resolvedName = storedSenderName ?? userProfile.name;
+    String? resolvedEmail = storedSenderEmail ?? userProfile.email;
+    String? resolvedPhoto = storedSenderPhoto ?? userProfile.photoUrl;
+
+    if (resolvedEmail == null ||
+        resolvedEmail.isEmpty ||
+        resolvedPhoto == null ||
+        resolvedPhoto.isEmpty ||
+        resolvedName == null ||
+        resolvedName.isEmpty) {
+      final latestMeta = await _fetchLatestMessageMetadata(doc.reference);
+      resolvedName ??= latestMeta['senderName'];
+      resolvedEmail ??= latestMeta['senderEmail'];
+      resolvedPhoto ??= latestMeta['senderPhotoUrl'];
+    }
+    resolvedName =
+        (resolvedName == null || resolvedName.isEmpty) ? 'User' : resolvedName;
 
     final metadataUpdates = <String, dynamic>{};
-    if (storedSenderName == null && userProfile.name != null) {
-      metadataUpdates['senderName'] = userProfile.name;
+    if (resolvedName != storedSenderName) {
+      metadataUpdates['senderName'] = resolvedName;
     }
-    if (storedSenderEmail == null && userProfile.email != null) {
-      metadataUpdates['senderEmail'] = userProfile.email;
+    if (resolvedEmail != null && resolvedEmail != storedSenderEmail) {
+      metadataUpdates['senderEmail'] = resolvedEmail;
     }
-    if (storedSenderPhoto == null && userProfile.photoUrl != null) {
-      metadataUpdates['senderPhotoUrl'] = userProfile.photoUrl;
+    if (resolvedPhoto != null && resolvedPhoto != storedSenderPhoto) {
+      metadataUpdates['senderPhotoUrl'] = resolvedPhoto;
     }
     if (metadataUpdates.isNotEmpty) {
       await doc.reference.set(metadataUpdates, SetOptions(merge: true));
@@ -306,9 +322,9 @@ class ChatService {
       userId: userId ?? '',
       userName: resolvedName,
       userEmail: resolvedEmail,
-      senderName: storedSenderName ?? userProfile.name,
-      senderEmail: storedSenderEmail ?? userProfile.email,
-      senderPhotoUrl: storedSenderPhoto ?? userProfile.photoUrl,
+      senderName: resolvedName,
+      senderEmail: resolvedEmail,
+      senderPhotoUrl: resolvedPhoto,
       subject: data['subject'] as String? ?? 'Support request',
       status: _parseStatus(data['status'] as String?),
       priority: _parsePriority(data['priority'] as String?),
@@ -321,6 +337,33 @@ class ChatService {
       lastMessagePreview: data['lastMessage'] as String?,
       metadata: data['metadata'] as Map<String, dynamic>?,
     );
+  }
+
+  Future<Map<String, String?>> _fetchLatestMessageMetadata(
+    DocumentReference<Map<String, dynamic>> chatRef,
+  ) async {
+    try {
+      final snapshot =
+          await chatRef
+              .collection('messages')
+              .orderBy('timestamp', descending: true)
+              .limit(1)
+              .get();
+      if (snapshot.docs.isEmpty) return {};
+      final data = snapshot.docs.first.data();
+      return {
+        'senderName': (data['senderName'] as String?)?.trim(),
+        'senderEmail': (data['senderEmail'] as String?)?.trim(),
+        'senderPhotoUrl': (data['senderPhotoUrl'] as String?)?.trim(),
+      };
+    } catch (e, stackTrace) {
+      Logger.error(
+        'Error fetching latest message metadata for chat ${chatRef.id}',
+        e,
+        stackTrace,
+      );
+      return {};
+    }
   }
 
   Future<void> _listenToMessages(String chatId, String adminId) async {

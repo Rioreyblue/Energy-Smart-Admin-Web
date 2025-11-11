@@ -361,9 +361,17 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
 
   Widget _buildChatHeader() {
     final conversation = _selectedConversation!;
-    final displayName = conversation.senderName ?? conversation.userName;
-    final displayEmail =
-        conversation.senderEmail ?? conversation.userEmail ?? '';
+    final rawEmail =
+        conversation.senderEmail?.trim().isNotEmpty == true
+            ? conversation.senderEmail!.trim()
+            : conversation.userEmail ?? '';
+    final displayName =
+        conversation.senderName?.trim().isNotEmpty == true
+            ? conversation.senderName!.trim()
+            : rawEmail.isNotEmpty
+            ? rawEmail
+            : conversation.userName;
+    final displayEmail = rawEmail;
     final photoUrl = conversation.senderPhotoUrl;
     return Container(
       padding: const EdgeInsets.all(16),
