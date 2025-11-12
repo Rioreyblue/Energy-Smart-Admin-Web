@@ -113,16 +113,35 @@ class ChatMessage {
       timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
       isRead: json['isRead'] ?? false,
       metadata: json['metadata'] as Map<String, dynamic>?,
-      attachments:
-          (json['attachments'] as List?)
-              ?.map(
-                (item) => ChatAttachment.fromJson(
-                  Map<String, dynamic>.from(item as Map),
-                ),
-              )
-              .toList(),
+      attachments: _parseAttachments(json),
       replyToId: json['replyToId'] as String?,
     );
+  }
+
+  static List<ChatAttachment>? _parseAttachments(Map<String, dynamic> json) {
+    final raw = json['attachments'] ?? json['attachment'];
+    if (raw == null) return null;
+
+    final normalized = <Map<String, dynamic>>[];
+
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map) {
+          normalized.add(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          );
+        }
+      }
+    } else if (raw is Map) {
+      normalized.add(raw.map((key, value) => MapEntry(key.toString(), value)));
+    }
+
+    if (normalized.isEmpty) return null;
+
+    return normalized
+        .map((item) => ChatAttachment.fromJson(item))
+        .where((attachment) => attachment.url.isNotEmpty)
+        .toList();
   }
 }
 
@@ -147,11 +166,11 @@ class ChatAttachment {
 
   factory ChatAttachment.fromJson(Map<String, dynamic> json) {
     return ChatAttachment(
-      name: json['name'] ?? '',
-      url: json['url'] ?? '',
-      type: json['type'] as String?,
+      name: (json['name'] ?? '').toString(),
+      url: (json['url'] ?? '').toString(),
+      type: json['type']?.toString().toLowerCase(),
       size: (json['size'] as num?)?.toInt(),
-      mimeType: json['mimeType'] as String?,
+      mimeType: json['mimeType']?.toString(),
     );
   }
 

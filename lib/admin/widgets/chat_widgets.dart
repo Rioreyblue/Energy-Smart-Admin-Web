@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../constants/constant.dart';
 import '../models/chat_message_model.dart';
 
@@ -138,42 +140,98 @@ class ChatBubble extends StatelessWidget {
       final isImage =
           attachment.type == 'image' ||
           (attachment.mimeType?.startsWith('image/') ?? false);
-      final icon = isImage ? Iconsax.image : Iconsax.document;
-      final name =
+      final url = attachment.url;
+      final displayText =
           attachment.name.isNotEmpty ? attachment.name : attachment.url;
+      final capsuleColor =
+          isAdmin ? Colors.white.withAlpha(25) : Colors.grey.shade200;
+      final textColor = isAdmin ? Colors.white : AppColor.textPrimary;
 
-      return Container(
-        margin: const EdgeInsets.only(top: 8),
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: isAdmin ? Colors.white.withAlpha(25) : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isAdmin ? Colors.white : AppColor.textPrimary,
+      if (isImage && url.isNotEmpty) {
+        return GestureDetector(
+          onTap: () => _openUrl(url),
+          child: Container(
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: capsuleColor,
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 160,
-              child: Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: isAdmin ? Colors.white : AppColor.textPrimary,
-                  fontSize: 12,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: AspectRatio(
+                aspectRatio: 4 / 3,
+                child: CachedNetworkImage(
+                  imageUrl: url,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  placeholder:
+                      (context, _) => Container(
+                        color: Colors.grey.shade300,
+                        child: const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      ),
+                  errorWidget:
+                      (context, _, __) => Container(
+                        color: Colors.grey.shade300,
+                        child: const Icon(
+                          Icons.broken_image_outlined,
+                          size: 32,
+                        ),
+                      ),
                 ),
               ),
             ),
-          ],
+          ),
+        );
+      }
+
+      return InkWell(
+        onTap: url.isNotEmpty ? () => _openUrl(url) : null,
+        child: Container(
+          margin: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: capsuleColor,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Iconsax.document, size: 16, color: textColor),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 200,
+                child: Text(
+                  url.isNotEmpty ? url : displayText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 12,
+                    decoration:
+                        url.isNotEmpty ? TextDecoration.underline : null,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }).toList();
+  }
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   String _formatTime(DateTime dateTime) {

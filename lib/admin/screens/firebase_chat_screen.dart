@@ -1058,11 +1058,29 @@ class _FirebaseChatScreenState extends State<FirebaseChatScreen> {
   }
 
   Widget _buildMessageBubble(FirebaseChatMessage message, bool isAdmin) {
-    final isImageMessage = message.type == MessageType.image;
-    final imageUrl =
-        message.attachments?.isNotEmpty == true
-            ? message.attachments!.first.url
-            : null;
+    MessageAttachment? imageAttachment;
+    final attachments = message.attachments;
+    if (attachments != null && attachments.isNotEmpty) {
+      for (final attachment in attachments) {
+        if (attachment.url.isEmpty) continue;
+        final type = attachment.type?.toLowerCase();
+        if (type == null || type == 'image' || type.startsWith('image')) {
+          imageAttachment = attachment;
+          break;
+        }
+      }
+      if (imageAttachment == null) {
+        for (final attachment in attachments) {
+          if (attachment.url.isNotEmpty) {
+            imageAttachment = attachment;
+            break;
+          }
+        }
+      }
+    }
+
+    final imageUrl = imageAttachment?.url ?? '';
+    final isImageMessage = imageUrl.isNotEmpty;
 
     return Align(
       alignment: isAdmin ? Alignment.centerRight : Alignment.centerLeft,
@@ -1095,53 +1113,58 @@ class _FirebaseChatScreenState extends State<FirebaseChatScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (isImageMessage && imageUrl != null)
-              GestureDetector(
-                onTap: () => _showFullSizeImage(imageUrl),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Stack(
-                    children: [
-                      CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        placeholder:
-                            (context, url) => Container(
-                              width: double.infinity,
-                              height: 200,
-                              color: Colors.grey.shade200,
-                              child: const Center(
-                                child: CircularProgressIndicator(),
+            if (isImageMessage)
+              Builder(
+                builder: (context) {
+                  final resolvedImageUrl = imageUrl;
+                  return GestureDetector(
+                    onTap: () => _showFullSizeImage(resolvedImageUrl),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Stack(
+                        children: [
+                          CachedNetworkImage(
+                            imageUrl: resolvedImageUrl,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            placeholder:
+                                (context, url) => Container(
+                                  width: double.infinity,
+                                  height: 200,
+                                  color: Colors.grey.shade200,
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                            errorWidget:
+                                (context, url, error) => Container(
+                                  width: double.infinity,
+                                  height: 200,
+                                  color: Colors.grey.shade200,
+                                  child: const Icon(Icons.error),
+                                ),
+                          ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withAlpha(128),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Iconsax.eye,
+                                color: Colors.white,
+                                size: 16,
                               ),
                             ),
-                        errorWidget:
-                            (context, url, error) => Container(
-                              width: double.infinity,
-                              height: 200,
-                              color: Colors.grey.shade200,
-                              child: const Icon(Icons.error),
-                            ),
-                      ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withAlpha(128),
-                            borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(
-                            Iconsax.eye,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               )
             else
               Text(

@@ -441,10 +441,7 @@ class FirebaseChatMessage {
       ),
       replyToId: json['replyToId'],
       metadata: metadata,
-      attachments:
-          (json['attachments'] as List?)
-              ?.map((a) => MessageAttachment.fromJson(a))
-              .toList(),
+      attachments: _parseAttachments(json),
       senderEmail: json['senderEmail'] as String?,
       senderPhotoUrl: json['senderPhotoUrl'] as String?,
     );
@@ -519,6 +516,32 @@ class FirebaseChatMessage {
   }
 }
 
+List<MessageAttachment>? _parseAttachments(Map<String, dynamic> json) {
+  final raw = json['attachments'] ?? json['attachment'];
+  if (raw == null) return null;
+
+  final normalized = <Map<String, dynamic>>[];
+
+  if (raw is List) {
+    for (final item in raw) {
+      if (item is Map) {
+        normalized.add(
+          item.map((key, value) => MapEntry(key.toString(), value)),
+        );
+      }
+    }
+  } else if (raw is Map) {
+    normalized.add(raw.map((key, value) => MapEntry(key.toString(), value)));
+  }
+
+  if (normalized.isEmpty) return null;
+
+  return normalized
+      .map((item) => MessageAttachment.fromJson(item))
+      .where((attachment) => attachment.url.isNotEmpty)
+      .toList();
+}
+
 /// Message attachment model
 /// Matches database structure: {type: "image", url: "...", name: "..."}
 class MessageAttachment {
@@ -546,11 +569,11 @@ class MessageAttachment {
 
   factory MessageAttachment.fromJson(Map<String, dynamic> json) {
     return MessageAttachment(
-      name: json['name'] ?? '',
-      url: json['url'] ?? '',
-      size: json['size'] as int?,
-      mimeType: json['mimeType'] as String?,
-      type: json['type'] as String?,
+      name: (json['name'] ?? '').toString(),
+      url: (json['url'] ?? '').toString(),
+      size: (json['size'] as num?)?.toInt(),
+      mimeType: json['mimeType']?.toString(),
+      type: json['type']?.toString().toLowerCase(),
     );
   }
 }
