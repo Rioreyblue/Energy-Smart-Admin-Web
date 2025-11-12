@@ -144,20 +144,19 @@ class _UsersScreenState extends State<UsersScreen> {
       // Extract email
       final email = userData['email']?.toString() ?? '';
 
-      // Determine status - prioritize status field, fallback to isApproved
+      // Determine status - prioritize status field, default to Active for new accounts
       String status = 'Active';
       if (userData['status'] != null) {
         // Use status field if it exists
-        final statusValue = userData['status'].toString();
-        status =
-            (statusValue == 'Active' || statusValue == 'Suspended')
-                ? statusValue
-                : 'Active';
-      } else if (userData.containsKey('isApproved')) {
-        // Fallback to isApproved field
-        final isApproved = userData['isApproved'] == true;
-        status = isApproved ? 'Active' : 'Suspended';
+        final statusValue = userData['status'].toString().trim();
+        if (statusValue == 'Active' || statusValue == 'Suspended') {
+          status = statusValue;
+        }
+        // If status field has invalid value, keep default 'Active'
       }
+      // Note: isApproved field is no longer used to determine default status
+      // New accounts default to 'Active' regardless of isApproved value
+      // Status can only be 'Suspended' if explicitly set in the status field
 
       // Parse lastActive date - prioritize thisMonthUsage/lastUpdated
       DateTime? lastActive;
@@ -372,12 +371,16 @@ class _UsersScreenState extends State<UsersScreen> {
         isApproved = isApprovedValue == 1;
       }
 
-      final newStatus = isApproved ? 'Active' : 'Suspended';
-
-      setState(() {
-        _users[userIndex]['status'] = newStatus;
-        _applyFilters();
-      });
+      // Only update status if isApproved is true (set to Active)
+      // If isApproved is false, don't automatically set to Suspended
+      // New accounts default to Active regardless of isApproved value
+      if (isApproved) {
+        setState(() {
+          _users[userIndex]['status'] = 'Active';
+          _applyFilters();
+        });
+      }
+      // If isApproved is false, status remains at its current value (defaults to Active for new accounts)
     }
   }
 
