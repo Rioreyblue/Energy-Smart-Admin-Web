@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import '../../constants/onesignal_config.dart';
@@ -19,6 +20,13 @@ class OneSignalService {
 
   /// Initialize OneSignal SDK
   Future<void> initialize() async {
+    if (kIsWeb) {
+      Logger.info(
+        'OneSignal web initialization handled via web/index.html script.',
+      );
+      return;
+    }
+
     try {
       // Set App ID
       OneSignal.initialize(OneSignalConfig.appId);
@@ -175,6 +183,7 @@ class OneSignalService {
       final credentials = base64Encode(
         utf8.encode('${OneSignalConfig.restApiKey}:'),
       );
+      final iconUrl = OneSignalConfig.notificationIconUrl;
       final response = await http.post(
         Uri.parse(OneSignalConfig.apiUrl),
         headers: {
@@ -187,6 +196,9 @@ class OneSignalService {
           'headings': {'en': title},
           'contents': {'en': body},
           'data': data ?? {},
+          'android_small_icon': OneSignalConfig.androidSmallIcon,
+          if (iconUrl != null) 'large_icon': iconUrl,
+          if (iconUrl != null) 'big_picture': iconUrl,
         }),
       );
 
@@ -218,6 +230,7 @@ class OneSignalService {
       final credentials = base64Encode(
         utf8.encode('${OneSignalConfig.restApiKey}:'),
       );
+      final iconUrl = OneSignalConfig.notificationIconUrl;
       final response = await http.post(
         Uri.parse(OneSignalConfig.apiUrl),
         headers: {
@@ -230,6 +243,9 @@ class OneSignalService {
           'headings': {'en': title},
           'contents': {'en': body},
           'data': data ?? {},
+          'android_small_icon': OneSignalConfig.androidSmallIcon,
+          if (iconUrl != null) 'large_icon': iconUrl,
+          if (iconUrl != null) 'big_picture': iconUrl,
         }),
       );
 

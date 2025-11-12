@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import 'firebase_options.dart';
 import 'constants/constant.dart';
 import 'admin/auth/admin_auth_wrapper.dart';
@@ -8,6 +10,13 @@ import 'utils/logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await dotenv.load(fileName: '.env');
+    Logger.info('.env configuration loaded');
+  } catch (e) {
+    Logger.warning('Failed to load .env file. Falling back to defaults.', e);
+  }
 
   try {
     // Initialize OneSignal first (before Firebase)

@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 
+import '../utils/unread_count_utils.dart';
+
 /// User model for Firebase Firestore
 class FirebaseUser {
   final String id;
@@ -275,7 +277,7 @@ class FirebaseChat {
       lastMessageTime:
           (json['lastMessageTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
       createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      unreadCount: Map<String, int>.from(json['unreadCount'] ?? {}),
+      unreadCount: normalizeUnreadCount(json['unreadCount']),
       subject: json['subject'],
       status: ChatStatus.values.firstWhere(
         (e) => e.name == json['status'],

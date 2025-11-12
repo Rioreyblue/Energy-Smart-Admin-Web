@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../constants/constant.dart';
 import '../models/firebase_chat_models.dart';
@@ -30,10 +28,8 @@ class _FirebaseChatScreenState extends State<FirebaseChatScreen> {
   AdminChatThread? _selectedThread;
   bool _isLoadingThreads = true;
   bool _isMessagesLoading = false;
-  bool _isUploadingImage = false;
   String? _errorMessage;
   String _searchQuery = '';
-  final ImagePicker _imagePicker = ImagePicker();
   StreamSubscription<List<AdminChatThread>>? _conversationSubscription;
   StreamSubscription<List<FirebaseChatMessage>>? _messagesSubscription;
   _ConversationQuickFilter _activeFilter = _ConversationQuickFilter.active;
@@ -695,6 +691,11 @@ class _FirebaseChatScreenState extends State<FirebaseChatScreen> {
   Widget _buildChatHeader(AdminChatThread thread) {
     final otherUser = thread.user;
     final assignedAdminName = thread.assignedAdmin?.name ?? 'Unassigned';
+    final displayName =
+        otherUser.name.trim().isEmpty
+            ? (otherUser.email.isNotEmpty ? otherUser.email : otherUser.id)
+            : otherUser.name;
+    final isLikelyUid = displayName == otherUser.id;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -740,10 +741,11 @@ class _FirebaseChatScreenState extends State<FirebaseChatScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  otherUser.name,
-                  style: ResponsiveText.body(
-                    context,
-                  ).copyWith(fontWeight: FontWeight.bold),
+                  displayName,
+                  style: (isLikelyUid
+                          ? ResponsiveText.caption(context)
+                          : ResponsiveText.body(context))
+                      .copyWith(fontWeight: FontWeight.bold),
                 ),
                 Text(
                   otherUser.email,
@@ -1198,23 +1200,6 @@ class _FirebaseChatScreenState extends State<FirebaseChatScreen> {
       ),
       child: Row(
         children: [
-          IconButton(
-            onPressed: _isUploadingImage ? null : _pickAndSendImage,
-            icon:
-                _isUploadingImage
-                    ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                    : const Icon(Iconsax.gallery),
-            color: AppColor.accentGreen,
-            style: IconButton.styleFrom(
-              backgroundColor: AppColor.accentGreen.withAlpha(26),
-              padding: const EdgeInsets.all(12),
-            ),
-          ),
-          const SizedBox(width: 8),
           Expanded(
             child: TextField(
               controller: _messageController,
@@ -1276,6 +1261,11 @@ class _FirebaseChatScreenState extends State<FirebaseChatScreen> {
     final unreadCount = thread.unreadForAdmin;
     final lastMessage = thread.chat.lastMessage ?? 'No messages yet';
     final lastMessageTime = thread.chat.lastMessageTime;
+    final displayName =
+        user.name.trim().isEmpty
+            ? (user.email.isNotEmpty ? user.email : user.id)
+            : user.name;
+    final isLikelyUid = displayName == user.id;
 
     return InkWell(
       onTap: () => _selectConversation(thread),
@@ -1324,14 +1314,17 @@ class _FirebaseChatScreenState extends State<FirebaseChatScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          user.name,
-                          style: ResponsiveText.body(context).copyWith(
-                            fontWeight:
-                                unreadCount > 0
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                            color: AppColor.textPrimary,
-                          ),
+                          displayName,
+                          style: (isLikelyUid
+                                  ? ResponsiveText.caption(context)
+                                  : ResponsiveText.body(context))
+                              .copyWith(
+                                fontWeight:
+                                    unreadCount > 0
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                color: AppColor.textPrimary,
+                              ),
                         ),
                       ),
                       if (unreadCount > 0)
@@ -1488,91 +1481,6 @@ class _FirebaseChatScreenState extends State<FirebaseChatScreen> {
     _chatService.sendMessageToUser(userId: thread.user.id, text: text);
 
     _messageController.clear();
-  }
-
-  Future<void> _pickAndSendImage() async {
-    final thread = _selectedThread;
-    if (thread == null) return;
-
-    try {
-      // Show option to pick from gallery or camera
-      final source = await showModalBottomSheet<ImageSource>(
-        context: context,
-        builder:
-            (context) => SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    leading: const Icon(Iconsax.gallery),
-                    title: const Text('Gallery'),
-                    onTap: () => Navigator.pop(context, ImageSource.gallery),
-                  ),
-                  ListTile(
-                    leading: const Icon(Iconsax.camera),
-                    title: const Text('Camera'),
-                    onTap: () => Navigator.pop(context, ImageSource.camera),
-                  ),
-                ],
-              ),
-            ),
-      );
-
-      if (source == null) return;
-
-      // Pick image
-      final XFile? pickedFile = await _imagePicker.pickImage(
-        source: source,
-        imageQuality: 85,
-        maxWidth: 1920,
-        maxHeight: 1920,
-      );
-
-      if (pickedFile == null) return;
-
-      setState(() {
-        _isUploadingImage = true;
-      });
-
-      // Send image using new structure
-      await _chatService.sendImageMessageToUser(
-        userId: thread.user.id,
-        imageFile: File(pickedFile.path),
-        caption:
-            _messageController.text.trim().isEmpty
-                ? null
-                : _messageController.text.trim(),
-      );
-
-      _messageController.clear();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Image sent successfully'),
-            backgroundColor: AppColor.accentGreen,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      Logger.error('Error picking/sending image', e);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error sending image: $e'),
-            backgroundColor: AppColor.accentRed,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUploadingImage = false;
-        });
-      }
-    }
   }
 
   void _showFullSizeImage(String imageUrl) {

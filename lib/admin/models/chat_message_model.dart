@@ -1,3 +1,5 @@
+import '../utils/unread_count_utils.dart';
+
 class ChatMessage {
   final String id;
   final String conversationId;
@@ -301,11 +303,7 @@ class ChatConversation {
               )
               .toList() ??
           const [],
-      unreadCount:
-          (json['unreadCount'] as Map<String, dynamic>?)?.map(
-            (key, value) => MapEntry(key, (value as num).toInt()),
-          ) ??
-          const {},
+      unreadCount: normalizeUnreadCount(json['unreadCount']),
       assignedAdminId: json['assignedAdminId'] as String?,
       assignedAdminName: json['assignedAdminName'] as String?,
       lastMessagePreview: json['lastMessagePreview'] as String?,

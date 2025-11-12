@@ -90,6 +90,28 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
     }
   }
 
+  Future<void> _refreshConversations() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      await _chatService.refresh();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -243,12 +265,7 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
             icon: const Icon(Iconsax.filter),
           ),
           IconButton(
-            onPressed: () {
-              setState(() {
-                _isLoading = true;
-              });
-              _initializeChat();
-            },
+            onPressed: _refreshConversations,
             icon: const Icon(Iconsax.refresh),
           ),
         ],

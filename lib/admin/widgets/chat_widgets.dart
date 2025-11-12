@@ -252,14 +252,6 @@ class _ChatInputState extends State<ChatInput> {
       ),
       child: Row(
         children: [
-          IconButton(
-            onPressed: widget.isEnabled ? _showAttachmentOptions : null,
-            icon: Icon(
-              Iconsax.attach_circle,
-              color:
-                  widget.isEnabled ? AppColor.textSecondary : AppColor.disabled,
-            ),
-          ),
           Expanded(
             child: TextField(
               controller: _controller,
@@ -331,51 +323,6 @@ class _ChatInputState extends State<ChatInput> {
         _isTyping = false;
       });
     }
-  }
-
-  void _showAttachmentOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder:
-          (context) => Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Iconsax.camera, color: AppColor.primary),
-                  title: const Text('Camera'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    // Handle camera
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(
-                    Iconsax.gallery,
-                    color: AppColor.accentGreen,
-                  ),
-                  title: const Text('Gallery'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    // Handle gallery
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(
-                    Iconsax.document,
-                    color: AppColor.mediumConsumption,
-                  ),
-                  title: const Text('Document'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    // Handle document
-                  },
-                ),
-              ],
-            ),
-          ),
-    );
   }
 }
 

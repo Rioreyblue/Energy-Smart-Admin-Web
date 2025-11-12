@@ -256,6 +256,14 @@ firebase emulators:start
 ## 🔧 Configuration
 
 ### Environment Variables
+Copy `env.example` to a `.env` file and populate the required values before running the app.
+
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_UPLOAD_PRESET` *(optional – only needed if you override the hardcoded defaults)*
+- `NOTIFICATION_ICON_URL` (public URL to `assets/icon/update_icon.png`, e.g. upload to Cloudinary)
+- Optional overrides: `ONESIGNAL_APP_ID`, `ONESIGNAL_REST_API_KEY`, `ONESIGNAL_ANDROID_SMALL_ICON`
+
+The `.env` file is loaded automatically at start-up (`lib/main.dart`), so keep it out of source control.
+
 Create different configurations for:
 - Development
 - Staging
@@ -263,6 +271,79 @@ Create different configurations for:
 
 ### Firebase Projects
 Maintain separate projects for each environment with appropriate security settings.
+
+### OneSignal Notification Icon
+
+For custom notification icons when new messages arrive:
+
+1. Convert `assets/icon/update_icon.png` into monochrome 24×24 (or preferred) and copy it to `android/app/src/main/res/drawable/ic_notification.png`.
+2. Set `ONESIGNAL_ANDROID_SMALL_ICON=ic_notification` in your `.env` (or keep the default).
+3. Host a large icon (e.g. upload the same image to Cloudinary) and set `NOTIFICATION_ICON_URL` so OneSignal can render it in notifications.
+4. Ensure your OneSignal App ID and REST API key are either defined in `.env` or left as the existing defaults.
+
+### Cloudinary (Image Uploads)
+
+- Default credentials (hardcoded in `CloudinaryConfig`)  
+  `Cloud Name: duza86enw`  
+  `API Key: 199568522614648`  
+  `API Secret: WqTTy_PBHMZUIhJ3ZzY4Pdouhvk`  
+  `Upload Preset: energysmart_upload` (unsigned)  
+  `Asset Folder: test/data`
+- If you need to switch environments, create a `.env` and provide overrides for the keys above. Otherwise, the defaults will be used.
+
+### OneSignal Web Push
+
+For Flutter web builds (including PWA/web APK packaging):
+
+1. `web/index.html` loads the OneSignal Web SDK and calls `OneSignal.init` with App ID `741790af-bbf1-4480-9c92-18352b884ea3`.
+2. `web/OneSignalSDKWorker.js` and `web/OneSignalSDKUpdaterWorker.js` are required so incoming notifications reach the app when it’s in the background.
+3. In the OneSignal dashboard, enable the **Web Push** platform, set the site URL (must be HTTPS in production), and upload any web-specific icons if desired.
+4. When running locally, OneSignal is configured with `allowLocalhostAsSecureOrigin: true` so you can test via `flutter run -d chrome`.
+
+## 🛠️ Data Maintenance
+
+### Normalize `unreadCount` Field
+
+If older chat documents contain mis-typed `unreadCount` values (e.g. a bare number or string), you can normalize them in the Firebase Console using the snippet below:
+
+```js
+const normalizeUnreadMap = (raw, fallbackKey = 'admin') => {
+  if (raw == null) return {};
+
+  if (typeof raw === 'number') {
+    const value = Math.max(0, Math.trunc(raw));
+    return { [fallbackKey]: value };
+  }
+
+  if (typeof raw !== 'object') return {};
+
+  return Object.entries(raw).reduce((acc, [key, value]) => {
+    const parsed = parseInt(value, 10);
+    const safeValue = Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    if (key && key.trim()) {
+      acc[key.trim()] = safeValue;
+    }
+    return acc;
+  }, {});
+};
+
+firebase
+  .firestore()
+  .collection('chats')
+  .get()
+  .then((snapshot) => {
+    const batch = firebase.firestore().batch();
+
+    snapshot.forEach((doc) => {
+      const normalized = normalizeUnreadMap(doc.get('unreadCount'));
+      batch.update(doc.ref, { unreadCount: normalized });
+    });
+
+    return batch.commit();
+  });
+```
+
+Run the script in small batches if you have a large dataset, and verify a few documents afterwards to confirm counts are stored as numbers inside a map.
 
 ## 📚 API Reference
 

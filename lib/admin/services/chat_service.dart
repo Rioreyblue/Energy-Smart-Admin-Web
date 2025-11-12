@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/chat_message_model.dart';
+import '../utils/unread_count_utils.dart';
 import '../../utils/logger.dart';
 
 class ChatService {
@@ -187,17 +188,15 @@ class ChatService {
   Future<void> dispose() async {
     await _conversationsSubscription?.cancel();
     await _messagesSubscription?.cancel();
-    if (!_conversationsController.isClosed) {
-      await _conversationsController.close();
-    }
-    if (!_activeConversationController.isClosed) {
-      await _activeConversationController.close();
-    }
+    _conversationsSubscription = null;
+    _messagesSubscription = null;
     _conversationCache.clear();
     _messagesCache.clear();
     _userCache.clear();
     _adminCache.clear();
     _initialized = false;
+    _activeConversation = null;
+    _activeConversationId = null;
   }
 
   // region -- Internal helpers -------------------------------------------------
@@ -260,11 +259,7 @@ class ChatService {
     final createdAt = _toDateTime(data['createdAt']);
     final lastMessageTime =
         _toDateTime(data['lastMessageTime']) ?? createdAt ?? DateTime.now();
-    final unreadMap =
-        (data['unreadCount'] as Map<String, dynamic>?)?.map(
-          (key, value) => MapEntry(key, (value as num).toInt()),
-        ) ??
-        const <String, int>{};
+    final unreadMap = normalizeUnreadCount(data['unreadCount']);
 
     final participants = List<String>.from(data['participants'] ?? []);
     final userId = _resolveUserId(participants, adminId) ?? data['userId'];

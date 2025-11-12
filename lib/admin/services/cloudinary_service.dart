@@ -15,15 +15,15 @@ class CloudinaryService {
     String? folder,
     Function(int, int)? onProgress,
   }) async {
+    const uploadUrl = CloudinaryConfig.uploadUrl;
+    const uploadPreset = CloudinaryConfig.uploadPreset;
+
     try {
       // Create multipart request for unsigned upload
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse(CloudinaryConfig.uploadUrl),
-      );
+      final request = http.MultipartRequest('POST', Uri.parse(uploadUrl));
 
       // Add upload preset for unsigned uploads
-      request.fields['upload_preset'] = CloudinaryConfig.uploadPreset;
+      request.fields['upload_preset'] = uploadPreset;
 
       // Add folder if specified
       if (folder != null) {
@@ -69,15 +69,15 @@ class CloudinaryService {
     required String publicId,
     String? folder,
   }) async {
+    const uploadUrl = CloudinaryConfig.uploadUrl;
+    const uploadPreset = CloudinaryConfig.uploadPreset;
+
     try {
       // Create multipart request for unsigned upload
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse(CloudinaryConfig.uploadUrl),
-      );
+      final request = http.MultipartRequest('POST', Uri.parse(uploadUrl));
 
       // Add upload preset for unsigned uploads
-      request.fields['upload_preset'] = CloudinaryConfig.uploadPreset;
+      request.fields['upload_preset'] = uploadPreset;
 
       // Add public ID
       request.fields['public_id'] = publicId;

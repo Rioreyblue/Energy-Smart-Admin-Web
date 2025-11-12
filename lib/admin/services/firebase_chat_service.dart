@@ -1618,16 +1618,12 @@ class FirebaseChatService {
     ChatPriority priority = ChatPriority.normal,
   }) async {
     if (_currentUser == null) throw Exception('User not authenticated');
-    // Try to find existing chat with same two participants
-    final existing =
-        await _firestore
-            .collection('chats')
-            .where('participants', arrayContains: _currentUser!.id)
-            .get();
-    for (final doc in existing.docs) {
-      final data = doc.data();
-      final parts = List<String>.from(data['participants'] ?? []);
-      if (parts.length == 2 && parts.contains(userId)) {
+
+    final existingSnapshot = await _findExistingChatSnapshot(userId);
+    if (existingSnapshot != null) {
+      await _normalizeChatDocument(existingSnapshot, userId);
+      final data = existingSnapshot.data();
+      if (data != null) {
         final needsName = (data['senderName'] as String?)?.isEmpty ?? true;
         final needsEmail = data['senderEmail'] == null;
         final needsPhoto = data['senderPhotoUrl'] == null;
@@ -1645,13 +1641,17 @@ class FirebaseChatService {
               updates['senderPhotoUrl'] = user.photoUrl;
             }
             if (updates.isNotEmpty) {
-              await doc.reference.set(updates, SetOptions(merge: true));
+              await existingSnapshot.reference.set(
+                updates,
+                SetOptions(merge: true),
+              );
             }
           }
         }
-        return doc.id;
       }
+      return existingSnapshot.id;
     }
+
     // Create new
     return createChat(userId: userId, subject: subject, priority: priority);
   }
@@ -2444,78 +2444,12 @@ class FirebaseChatService {
   Future<String> getOrCreateChatWithUser(String userId) async {
     if (_currentUser == null) throw Exception('User not authenticated');
 
-    // Search for existing chat thread - try multiple strategies
     try {
-      // Strategy 1: Search for chats with 'admin' string
-      final existingChatsWithAdmin =
-          await _firestore
-              .collection('chats')
-              .where('participants', arrayContains: 'admin')
-              .get();
-
-      for (final doc in existingChatsWithAdmin.docs) {
-        final data = doc.data();
-        final participants = List<String>.from(data['participants'] ?? []);
-        // Check if both userId and 'admin' are in participants
-        if (participants.contains(userId) && participants.contains('admin')) {
-          Logger.debug(
-            'Found existing chat thread with "admin" string: ${doc.id}',
-          );
-
-          // Optional: Update chat to include admin UID if missing (for consistency)
-          if (!participants.contains(_currentUser!.id)) {
-            try {
-              await _firestore.collection('chats').doc(doc.id).update({
-                'participants': FieldValue.arrayUnion([_currentUser!.id]),
-              });
-              Logger.debug('Updated chat to include admin UID');
-            } catch (e) {
-              Logger.error('Error updating chat participants', e);
-            }
-          }
-
-          return doc.id;
-        }
-      }
-
-      // Strategy 2: If admin, search for chats with admin UID (fallback for existing chats)
-      if (_currentUser!.role == 'admin') {
-        Logger.debug(
-          'No chat found with "admin" string, trying search with admin UID: ${_currentUser!.id}',
-        );
-        final existingChatsWithUid =
-            await _firestore
-                .collection('chats')
-                .where('participants', arrayContains: _currentUser!.id)
-                .get();
-
-        for (final doc in existingChatsWithUid.docs) {
-          final data = doc.data();
-          final participants = List<String>.from(data['participants'] ?? []);
-          // Check if both userId and admin UID are in participants
-          if (participants.contains(userId) &&
-              participants.contains(_currentUser!.id)) {
-            Logger.debug(
-              'Found existing chat thread with admin UID: ${doc.id}',
-            );
-
-            // Update chat to include 'admin' string for future queries (migration)
-            if (!participants.contains('admin')) {
-              try {
-                await _firestore.collection('chats').doc(doc.id).update({
-                  'participants': FieldValue.arrayUnion(['admin']),
-                });
-                Logger.debug(
-                  'Updated chat to include "admin" string for consistency',
-                );
-              } catch (e) {
-                Logger.error('Error updating chat with "admin" string', e);
-              }
-            }
-
-            return doc.id;
-          }
-        }
+      final existingSnapshot = await _findExistingChatSnapshot(userId);
+      if (existingSnapshot != null) {
+        await _normalizeChatDocument(existingSnapshot, userId);
+        Logger.debug('Reusing existing chat thread: ${existingSnapshot.id}');
+        return existingSnapshot.id;
       }
     } catch (e) {
       Logger.error('Error checking for existing chat', e);
@@ -2524,6 +2458,120 @@ class FirebaseChatService {
     // Create new chat thread if none exists
     Logger.info('Creating new chat thread for user: $userId');
     return await createChat(userId: userId);
+  }
+
+  Future<DocumentSnapshot<Map<String, dynamic>>?> _findExistingChatSnapshot(
+    String userId,
+  ) async {
+    // 1. Look for chats where participants already contains the userId
+    try {
+      final participantQuery =
+          await _firestore
+              .collection('chats')
+              .where('participants', arrayContains: userId)
+              .get();
+      for (final doc in participantQuery.docs) {
+        final data = doc.data();
+        final participants = List<String>.from(data['participants'] ?? []);
+        if (!participants.contains(userId)) continue;
+        final storedUserId =
+            (data['userId'] as String?) ?? (data['user_id'] as String?) ?? '';
+        if (storedUserId.isNotEmpty && storedUserId != userId) {
+          continue;
+        }
+        return doc;
+      }
+    } catch (e, stackTrace) {
+      Logger.error(
+        '[findExistingChat] Error searching by participants',
+        e,
+        stackTrace,
+      );
+    }
+
+    // 2. Fallback to userId field lookups
+    try {
+      final userIdQuery =
+          await _firestore
+              .collection('chats')
+              .where('userId', isEqualTo: userId)
+              .get();
+      if (userIdQuery.docs.isNotEmpty) {
+        return userIdQuery.docs.first;
+      }
+    } catch (e, stackTrace) {
+      Logger.error(
+        '[findExistingChat] Error searching by userId field',
+        e,
+        stackTrace,
+      );
+    }
+
+    // 3. Legacy field `user_id`
+    try {
+      final legacyUserIdQuery =
+          await _firestore
+              .collection('chats')
+              .where('user_id', isEqualTo: userId)
+              .get();
+      if (legacyUserIdQuery.docs.isNotEmpty) {
+        return legacyUserIdQuery.docs.first;
+      }
+    } catch (e, stackTrace) {
+      Logger.error(
+        '[findExistingChat] Error searching by user_id field',
+        e,
+        stackTrace,
+      );
+    }
+
+    return null;
+  }
+
+  Future<void> _normalizeChatDocument(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+    String userId,
+  ) async {
+    final data = doc.data() ?? {};
+    final participants = List<String>.from(data['participants'] ?? []);
+    final updates = <String, dynamic>{};
+    final participantAdds = <String>[];
+
+    if (!participants.contains(userId)) {
+      participantAdds.add(userId);
+    }
+
+    if (!participants.contains('admin')) {
+      participantAdds.add('admin');
+    }
+
+    if (_currentUser != null &&
+        _currentUser!.role == 'admin' &&
+        !participants.contains(_currentUser!.id)) {
+      participantAdds.add(_currentUser!.id);
+    }
+
+    if (participantAdds.isNotEmpty) {
+      updates['participants'] = FieldValue.arrayUnion(participantAdds);
+    }
+
+    final storedUserId =
+        (data['userId'] as String?) ?? (data['user_id'] as String?) ?? '';
+    if (storedUserId.isEmpty) {
+      updates['userId'] = userId;
+    }
+
+    if (updates.isNotEmpty) {
+      try {
+        await doc.reference.set(updates, SetOptions(merge: true));
+      } catch (e, stackTrace) {
+        Logger.error(
+          '[normalizeChat] Error normalizing chat ${doc.id}',
+          e,
+          stackTrace,
+        );
+      }
+    }
   }
 
   /// Diagnostic method to check admin status and chat visibility
@@ -2621,11 +2669,39 @@ class FirebaseChatService {
     _usersSnapshotSubscription?.cancel();
     _usersSnapshotSubscription = null;
     _chatsSubscription?.cancel();
+    _chatsSubscription = null;
     _messagesSubscription?.cancel();
-    _chatsController.close();
-    _messagesController.close();
-    _statisticsController.close();
-    _conversationController.close();
+    _messagesSubscription = null;
+    _lastChatDoc = null;
+    _lastMessageDoc = null;
+    if (!_chatsController.isClosed) {
+      try {
+        _chatsController.add([]);
+      } catch (_) {}
+    }
+    if (!_messagesController.isClosed) {
+      try {
+        _messagesController.add([]);
+      } catch (_) {}
+    }
+    if (!_statisticsController.isClosed) {
+      try {
+        _statisticsController.add(
+          ChatStatistics(
+            totalChats: 0,
+            activeChats: 0,
+            unreadMessages: 0,
+            averageResponseTime: 0.0,
+            priorityBreakdown: <ChatPriority, int>{},
+          ),
+        );
+      } catch (_) {}
+    }
+    if (!_conversationController.isClosed) {
+      try {
+        _conversationController.add([]);
+      } catch (_) {}
+    }
     _currentConversations = [];
     _userCache.clear();
   }
