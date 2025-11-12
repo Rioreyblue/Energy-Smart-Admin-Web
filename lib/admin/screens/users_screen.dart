@@ -31,7 +31,7 @@ class _UsersScreenState extends State<UsersScreen> {
   Timer? _statusRefreshTimer;
 
   // Time window for considering a user as online (in minutes)
-  static const int _onlineTimeWindowMinutes = 10;
+  static const int _onlineTimeWindowMinutes = 2;
 
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _filteredUsers = [];
@@ -145,7 +145,7 @@ class _UsersScreenState extends State<UsersScreen> {
       final email = userData['email']?.toString() ?? '';
 
       // Determine status - prioritize status field, fallback to isApproved
-      String status;
+      String status = 'Active';
       if (userData['status'] != null) {
         // Use status field if it exists
         final statusValue = userData['status'].toString();
@@ -153,7 +153,7 @@ class _UsersScreenState extends State<UsersScreen> {
             (statusValue == 'Active' || statusValue == 'Suspended')
                 ? statusValue
                 : 'Active';
-      } else {
+      } else if (userData.containsKey('isApproved')) {
         // Fallback to isApproved field
         final isApproved = userData['isApproved'] == true;
         status = isApproved ? 'Active' : 'Suspended';
@@ -193,11 +193,11 @@ class _UsersScreenState extends State<UsersScreen> {
       // Default to now if no date found
       lastActive ??= DateTime.now();
 
-      // Extract energy usage from todayUsage.totalKwh
+      // Extract energy usage from thisMonthUsage.totalKwh
       double energyUsage = 0.0;
-      if (userData['todayUsage'] is Map) {
-        final todayUsage = userData['todayUsage'] as Map;
-        final totalKwh = todayUsage['totalKwh'];
+      if (userData['thisMonthUsage'] is Map) {
+        final thisMonthUsage = userData['thisMonthUsage'] as Map;
+        final totalKwh = thisMonthUsage['totalKwh'];
         if (totalKwh != null) {
           if (totalKwh is num) {
             energyUsage = totalKwh.toDouble();
@@ -207,11 +207,11 @@ class _UsersScreenState extends State<UsersScreen> {
         }
       }
 
-      // Extract energy cost from todayUsage.totalCost
+      // Extract energy cost from thisMonthUsage.totalCost
       double energyCost = 0.0;
-      if (userData['todayUsage'] is Map) {
-        final todayUsage = userData['todayUsage'] as Map;
-        final totalCost = todayUsage['totalCost'];
+      if (userData['thisMonthUsage'] is Map) {
+        final thisMonthUsage = userData['thisMonthUsage'] as Map;
+        final totalCost = thisMonthUsage['totalCost'];
         if (totalCost != null) {
           if (totalCost is num) {
             energyCost = totalCost.toDouble();

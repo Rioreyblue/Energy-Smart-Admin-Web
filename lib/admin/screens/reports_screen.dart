@@ -123,13 +123,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
       // Extract email
       final email = userData['email']?.toString() ?? '';
 
-      // Extract energy usage and cost from todayUsage
+      // Extract energy usage and cost from thisMonthUsage
       double energyUsage = 0.0;
       double energyCost = 0.0;
-      if (userData['todayUsage'] is Map) {
-        final todayUsage = userData['todayUsage'] as Map;
-        final totalKwh = todayUsage['totalKwh'];
-        final totalCost = todayUsage['totalCost'];
+      if (userData['thisMonthUsage'] is Map) {
+        final thisMonthUsage = userData['thisMonthUsage'] as Map;
+        final totalKwh = thisMonthUsage['totalKwh'];
+        final totalCost = thisMonthUsage['totalCost'];
 
         if (totalKwh != null) {
           if (totalKwh is num) {
@@ -307,17 +307,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
         Logger.error('Error fetching monthlyData from Firestore', e);
       }
 
-      // Fetch Today's Usage from Realtime DB
+      // Fetch This Month's Usage from Realtime DB
       double totalCost = 0.0;
       double todayKwh = 0.0;
-      String totalUsageTime = '0 hours';
       DateTime? todayDate;
       DateTime? lastUpdate;
       DateTime? billingDate;
 
       try {
         final todayUsageSnapshot =
-            await _database.ref('users/$userId/todayUsage').get();
+            await _database.ref('users/$userId/thisMonthUsage').get();
         if (todayUsageSnapshot.exists) {
           final todayUsageData = todayUsageSnapshot.value;
           if (todayUsageData is Map) {
@@ -331,14 +330,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
               }
             }
 
-            // Extract totalUsageTime
-            final totalUsageTimeValue = todayUsageData['totalUsageTime'];
-            if (totalUsageTimeValue != null) {
-              if (totalUsageTimeValue is num) {
-                final hours = totalUsageTimeValue.toDouble();
-                totalUsageTime = '${hours.toStringAsFixed(2)} hours';
-              } else if (totalUsageTimeValue is String) {
-                totalUsageTime = totalUsageTimeValue;
+            // Extract totalCost
+            final totalCostValue = todayUsageData['totalCost'];
+            if (totalCostValue != null) {
+              if (totalCostValue is num) {
+                totalCost = totalCostValue.toDouble();
+              } else if (totalCostValue is String) {
+                totalCost = double.tryParse(totalCostValue) ?? 0.0;
               }
             }
 
@@ -379,41 +377,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
           }
         }
       } catch (e) {
-        Logger.error('Error fetching todayUsage from Realtime DB', e);
+        Logger.error('Error fetching thisMonthUsage from Realtime DB', e);
       }
 
-      // Fallback to userData['todayUsage'] if available (for backward compatibility)
-      if (todayKwh == 0.0 && userData['todayUsage'] is Map) {
-        final todayUsage = userData['todayUsage'] as Map;
-        final totalCostValue = todayUsage['totalCost'];
-        final totalKwhValue = todayUsage['totalKwh'];
-        final lastUpdated = todayUsage['lastUpdated']?.toString();
-
-        if (totalCostValue != null) {
-          if (totalCostValue is num) {
-            totalCost = totalCostValue.toDouble();
-          } else if (totalCostValue is String) {
-            totalCost = double.tryParse(totalCostValue) ?? 0.0;
+      // Fetch user status from Realtime DB
+      String userStatus = 'Active';
+      try {
+        final statusSnapshot =
+            await _database.ref('users/$userId/status').get();
+        if (statusSnapshot.exists) {
+          final statusValue = statusSnapshot.value;
+          if (statusValue != null) {
+            userStatus = statusValue.toString().trim();
+            if (userStatus.isEmpty) {
+              userStatus = 'Active';
+            }
           }
         }
-
-        if (totalKwhValue != null) {
-          if (totalKwhValue is num) {
-            todayKwh = totalKwhValue.toDouble();
-          } else if (totalKwhValue is String) {
-            todayKwh = double.tryParse(totalKwhValue) ?? 0.0;
-          }
-        }
-
-        if (lastUpdated != null && lastUpdated.isNotEmpty) {
-          try {
-            billingDate = DateTime.parse(lastUpdated);
-            lastUpdate = billingDate;
-          } catch (e) {
-            billingDate = DateTime.now();
-            lastUpdate = billingDate;
-          }
-        }
+      } catch (e) {
+        Logger.error('Error fetching user status from Realtime DB', e);
       }
 
       // Use monthlyKwh if available, otherwise use todayKwh
@@ -445,6 +427,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
         }
       }
 
+      final double energyCost =
+          totalCost > 0 ? totalCost : (energyKwh * powerRate);
+
       // Generate invoice number
       final invoiceNumber =
           'INV-${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${userId.substring(0, 8).toUpperCase()}';
@@ -465,13 +450,30 @@ class _ReportsScreenState extends State<ReportsScreen> {
         },
         'todayUsage': {
           'totalKwh': todayKwh,
-          'totalUsageTime': totalUsageTime,
+          'totalCost': totalCost,
           'date': todayDate ?? DateTime.now(),
           'lastUpdate': lastUpdate ?? DateTime.now(),
+          'period': 'This Month',
+        },
+        'thisMonthUsage': {
+          'totalKwh': energyKwh,
+          'totalCost': energyCost,
+          'date': todayDate ?? DateTime.now(),
+          'lastUpdate': lastUpdate ?? DateTime.now(),
+          'period': 'This Month',
+          'status': userStatus,
+        },
+        'usageSummary': {
+          'totalKwh': energyKwh,
+          'totalCost': energyCost,
+          'date': todayDate ?? DateTime.now(),
+          'lastUpdate': lastUpdate ?? DateTime.now(),
+          'period': 'This Month',
+          'status': userStatus,
         },
         'energy': {
           'kwh': energyKwh,
-          'cost': totalCost > 0 ? totalCost : (energyKwh * powerRate),
+          'cost': energyCost,
           'powerRate': powerRate,
         },
         'appliances': appliances,
@@ -562,85 +564,100 @@ class _ReportsScreenState extends State<ReportsScreen> {
       context: context,
       builder:
           (context) => Dialog(
-            insetPadding: const EdgeInsets.all(16),
-            child: Container(
-              width: double.maxFinite,
-              constraints: const BoxConstraints(maxWidth: 900, maxHeight: 800),
-              child: Column(
-                children: [
-                  // Header
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColor.primary,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(8),
-                        topRight: Radius.circular(8),
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 24,
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final media = MediaQuery.of(context).size;
+                final maxWidth = media.width < 700 ? media.width * 0.95 : 900.0;
+                final maxHeight = media.height * 0.9;
+                return ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: maxWidth,
+                    maxHeight: maxHeight,
+                  ),
+                  child: Column(
+                    children: [
+                      // Header
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColor.primary,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(8),
+                            topRight: Radius.circular(8),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Energy Consumption Invoice',
+                              style: ResponsiveText.title(context).copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const Icon(
+                                Iconsax.close_circle,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Energy Consumption Invoice',
-                          style: ResponsiveText.title(context).copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      // Invoice Content
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(24),
+                          child: _buildInvoiceView(invoiceData),
                         ),
-                        IconButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(
-                            Iconsax.close_circle,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Invoice Content
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
-                      child: _buildInvoiceView(invoiceData),
-                    ),
-                  ),
-                  // Footer Actions
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(color: Colors.grey.shade200),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: Text(
-                            'Close',
-                            style: ResponsiveText.body(context),
+                      // Footer Actions
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(color: Colors.grey.shade200),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            _generateInvoicePDF(invoiceData);
-                          },
-                          icon: const Icon(Iconsax.document_download, size: 18),
-                          label: const Text('Export PDF'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColor.accentGreen,
-                            foregroundColor: Colors.white,
-                          ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: Text(
+                                'Close',
+                                style: ResponsiveText.body(context),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                _generateInvoicePDF(invoiceData);
+                              },
+                              icon: const Icon(
+                                Iconsax.document_download,
+                                size: 18,
+                              ),
+                              label: const Text('Export PDF'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColor.accentGreen,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             ),
           ),
     );
@@ -653,6 +670,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final invoiceDate = invoiceData['invoiceDate'] as DateTime;
     final billingDate = invoiceData['billingDate'] as DateTime;
     final invoiceNumber = invoiceData['invoiceNumber'] as String;
+    final rawUsage =
+        invoiceData['usageSummary'] ??
+        invoiceData['thisMonthUsage'] ??
+        invoiceData['todayUsage'];
+    final usage =
+        rawUsage is Map<String, dynamic> ? rawUsage : const <String, dynamic>{};
+    final usagePeriod = usage['period'] as String? ?? 'This Month';
+    final usageTotalKwh = (usage['totalKwh'] as num?)?.toDouble() ?? 0.0;
+    final usageTotalCost = (usage['totalCost'] as num?)?.toDouble() ?? 0.0;
+    final usageStatus = usage['status'] as String? ?? 'Active';
+    final usageDate = _coerceDateTime(usage['date']) ?? DateTime.now();
+    final usageLastUpdate =
+        _coerceDateTime(usage['lastUpdate']) ?? DateTime.now();
 
     // Calculate appliances totals
     double totalAppliancesKwh = 0.0;
@@ -939,7 +969,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ),
         const SizedBox(height: 24),
 
-        // Today's Usage Section
+        // Usage Summary Section
         Row(
           children: [
             Container(
@@ -952,7 +982,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
             const SizedBox(width: 10),
             Text(
-              "Today's Usage",
+              usagePeriod.isNotEmpty ? '$usagePeriod Usage' : 'Usage Summary',
               style: ResponsiveText.title(context).copyWith(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -973,43 +1003,31 @@ class _ReportsScreenState extends State<ReportsScreen> {
             children: [
               _buildTodayUsageRow(
                 'Total kWh',
-                '${((invoiceData['todayUsage'] as Map<String, dynamic>)['totalKwh'] as double? ?? 0.0).toStringAsFixed(4)}',
+                usageTotalKwh.toStringAsFixed(4),
                 'kWh',
               ),
               const SizedBox(height: 16),
               const Divider(height: 1, thickness: 1),
               const SizedBox(height: 16),
               _buildTodayUsageRow(
-                'Total Usage Time',
-                (invoiceData['todayUsage']
-                            as Map<String, dynamic>)['totalUsageTime']
-                        as String? ??
-                    '0 hours',
+                'Total Cost',
+                '₱${usageTotalCost.toStringAsFixed(2)}',
                 '',
               ),
               const SizedBox(height: 16),
               const Divider(height: 1, thickness: 1),
               const SizedBox(height: 16),
-              _buildTodayUsageRow(
-                'Date',
-                _formatDate(
-                  (invoiceData['todayUsage'] as Map<String, dynamic>)['date']
-                          as DateTime? ??
-                      DateTime.now(),
-                ),
-                '',
-              ),
+              _buildTodayUsageRow('Status', usageStatus, ''),
+              const SizedBox(height: 16),
+              const Divider(height: 1, thickness: 1),
+              const SizedBox(height: 16),
+              _buildTodayUsageRow('Date', _formatDate(usageDate), ''),
               const SizedBox(height: 16),
               const Divider(height: 1, thickness: 1),
               const SizedBox(height: 16),
               _buildTodayUsageRow(
                 'Last Updated',
-                _formatDateTime(
-                  (invoiceData['todayUsage']
-                              as Map<String, dynamic>)['lastUpdate']
-                          as DateTime? ??
-                      DateTime.now(),
-                ),
+                _formatDateTime(usageLastUpdate),
                 '',
               ),
             ],
@@ -1455,6 +1473,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
+  DateTime? _coerceDateTime(dynamic value) {
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) {
+      try {
+        return DateTime.parse(value);
+      } catch (_) {
+        return null;
+      }
+    }
+    if (value is num) {
+      try {
+        return DateTime.fromMillisecondsSinceEpoch(value.toInt());
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   Future<void> _generateInvoicePDF(Map<String, dynamic> invoiceData) async {
     try {
       // Show loading indicator
@@ -1504,6 +1541,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
         totalAppliancesKwh += (app['kwh'] as double? ?? 0.0);
         totalAppliancesCost += (app['cost'] as double? ?? 0.0);
       }
+
+      final rawUsageSummary =
+          invoiceData['usageSummary'] ??
+          invoiceData['thisMonthUsage'] ??
+          invoiceData['todayUsage'];
+      final usageSummary =
+          rawUsageSummary is Map<String, dynamic>
+              ? rawUsageSummary
+              : const <String, dynamic>{};
+      final usagePeriod = usageSummary['period'] as String? ?? 'This Month';
+      final usageSummaryDate =
+          _coerceDateTime(usageSummary['date']) ?? DateTime.now();
+      final usageSummaryLastUpdate =
+          _coerceDateTime(usageSummary['lastUpdate']) ?? DateTime.now();
+      final usageSummaryTotalKwh =
+          (usageSummary['totalKwh'] as num?)?.toDouble() ?? 0.0;
+      final usageSummaryTotalCost =
+          (usageSummary['totalCost'] as num?)?.toDouble() ?? 0.0;
+      final usageSummaryStatus = usageSummary['status'] as String? ?? 'Active';
 
       final applianceItems = appliances
           .whereType<Map<String, dynamic>>()
@@ -1831,9 +1887,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
               pw.SizedBox(height: 18),
 
-              // Today's Usage Section - Enhanced
+              // Usage Summary Section
               pw.Text(
-                "Today's Usage",
+                usagePeriod.isNotEmpty ? '$usagePeriod Usage' : 'Usage Summary',
                 style: pw.TextStyle(
                   fontSize: 15,
                   fontWeight: pw.FontWeight.bold,
@@ -1854,41 +1910,29 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   children: [
                     _buildPDFUsageRow(
                       'Total kWh',
-                      '${((invoiceData['todayUsage'] as Map<String, dynamic>)['totalKwh'] as double? ?? 0.0).toStringAsFixed(4)} kWh',
+                      '${usageSummaryTotalKwh.toStringAsFixed(4)} kWh',
                     ),
                     pw.SizedBox(height: 12),
                     pw.Divider(height: 1, thickness: 1),
                     pw.SizedBox(height: 12),
                     _buildPDFUsageRow(
-                      'Total Usage Time',
-                      (invoiceData['todayUsage']
-                                  as Map<String, dynamic>)['totalUsageTime']
-                              as String? ??
-                          '0 hours',
+                      'Total Cost',
+                      '$currencySymbol${usageSummaryTotalCost.toStringAsFixed(2)}',
                     ),
                     pw.SizedBox(height: 12),
                     pw.Divider(height: 1, thickness: 1),
                     pw.SizedBox(height: 12),
-                    _buildPDFUsageRow(
-                      'Date',
-                      _formatDate(
-                        (invoiceData['todayUsage']
-                                    as Map<String, dynamic>)['date']
-                                as DateTime? ??
-                            DateTime.now(),
-                      ),
-                    ),
+                    _buildPDFUsageRow('Status', usageSummaryStatus),
+                    pw.SizedBox(height: 12),
+                    pw.Divider(height: 1, thickness: 1),
+                    pw.SizedBox(height: 12),
+                    _buildPDFUsageRow('Date', _formatDate(usageSummaryDate)),
                     pw.SizedBox(height: 12),
                     pw.Divider(height: 1, thickness: 1),
                     pw.SizedBox(height: 12),
                     _buildPDFUsageRow(
                       'Last Updated',
-                      _formatDateTime(
-                        (invoiceData['todayUsage']
-                                    as Map<String, dynamic>)['lastUpdate']
-                                as DateTime? ??
-                            DateTime.now(),
-                      ),
+                      _formatDateTime(usageSummaryLastUpdate),
                     ),
                   ],
                 ),

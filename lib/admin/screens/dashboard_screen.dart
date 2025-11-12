@@ -1,16 +1,16 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:iconsax/iconsax.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:iconsax/iconsax.dart';
 import '../../../constants/constant.dart';
-import '../widgets/summary_card.dart';
-import '../utils/responsive_layout.dart';
+import '../../../utils/logger.dart';
+import '../models/firebase_chat_models.dart';
 import '../services/admin_notification_service.dart';
 import '../services/firebase_auth_service.dart';
-import '../models/firebase_chat_models.dart';
-import '../../../utils/logger.dart';
+import '../utils/responsive_layout.dart';
+import '../widgets/summary_card.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -25,6 +25,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final AdminNotificationService _notificationService =
       AdminNotificationService();
   final FirebaseAuthService _authService = FirebaseAuthService();
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _firestoreUsersSubscription;
 
   // Time window for considering a device as "active" (in minutes)
   static const int _activeDeviceTimeWindowMinutes = 15;
@@ -55,6 +57,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // Track known user IDs for new user detection
   final Set<String> _knownUserIds = {};
+  final Map<String, int> _userTypeCounts = {};
 
   // Static placeholder data - no async loading
   final Map<String, dynamic> _dashboardStats = {
@@ -72,6 +75,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadAdminProfile();
     _listenToUsers();
     _listenToUsersRealtime(); // Listen to Realtime DB for new user detection
+    _listenToFirestoreUsers();
     _listenToActiveDevices();
     _listenToEnergyUsage();
     _listenToPowerRate();
@@ -226,6 +230,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Logger.error('Error listening to users in Realtime DB', error);
       },
     );
+  }
+
+  void _listenToFirestoreUsers() {
+    _firestoreUsersSubscription?.cancel();
+    _firestoreUsersSubscription = _firestore
+        .collection('users')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            final counts = <String, int>{};
+            for (final doc in snapshot.docs) {
+              final data = doc.data();
+              final role = (data['role'] ?? data['userRole'] ?? '').toString();
+              final isAdmin = role.toLowerCase() == 'admin';
+              final isMarkedAdmin =
+                  (data['isAdmin'] == true) ||
+                  ((data['permissions'] is List) &&
+                      (data['permissions'] as List)
+                          .map((e) => e.toString().toLowerCase())
+                          .contains('admin'));
+              if (isAdmin || isMarkedAdmin) continue;
+
+              final rawType =
+                  (data['userType'] ?? data['type'] ?? data['role'] ?? '')
+                      .toString();
+              final normalizedType = _normalizeUserType(rawType);
+              counts[normalizedType] = (counts[normalizedType] ?? 0) + 1;
+            }
+
+            if (mounted) {
+              setState(() {
+                _userTypeCounts
+                  ..clear()
+                  ..addAll(counts);
+                _totalUsers = counts.values.fold<int>(
+                  0,
+                  (sum, value) => sum + value,
+                );
+                _updateLastUpdateTime();
+              });
+            }
+          },
+          onError: (error) {
+            Logger.error('Error listening to Firestore users', error);
+          },
+        );
   }
 
   Future<void> _handleNewUser(String userId, dynamic userData) async {
@@ -572,6 +622,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     _energyUsageSubscriptions.clear();
     _userEnergyUsage.clear();
+    _firestoreUsersSubscription?.cancel();
     _lastUpdateTimer?.cancel();
     super.dispose();
   }
@@ -737,10 +788,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildSummaryCards() {
     // Use static placeholder data - no null checks needed
     final stats = _dashboardStats;
+    final subtitle =
+        _userTypeCounts.isEmpty
+            ? 'Registered users'
+            : _userTypeCounts.entries
+                .map((entry) => '${entry.key}: ${entry.value}')
+                .join(' · ');
     final cards = [
       SummaryCardTypes.users(
         value: '${_totalUsers ?? stats['totalUsers']}',
-        subtitle: 'Registered users',
+        subtitle: subtitle,
         trend: '+12%',
         trendColor: AppColor.accentGreen,
         onTap: () {
@@ -768,7 +825,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       SummaryCardTypes.powerRate(
         value:
-            '₱${(_powerRate ?? stats['currentPowerRate']).toStringAsFixed(3)}/kWh',
+            '₱${(_powerRate ?? stats['currentPowerRate']).toStringAsFixed(4)}/kWh',
         subtitle: 'Current rate',
         trend: '+2%',
         trendColor: AppColor.mediumConsumption,
@@ -796,5 +853,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               )
               .toList(),
     );
+  }
+
+  String _normalizeUserType(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return 'Unknown';
+    final lower = trimmed.toLowerCase();
+    if (lower.contains('house')) return 'Household';
+    if (lower.contains('business')) return 'Small Business';
+    if (lower.contains('small')) return 'Small Business';
+    return trimmed[0].toUpperCase() + trimmed.substring(1);
   }
 }
