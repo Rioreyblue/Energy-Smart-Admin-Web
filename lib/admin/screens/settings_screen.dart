@@ -593,7 +593,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   String _formatCurrency(double value) {
-    return '₱${value.toStringAsFixed(2)}';
+    return '₱${value.toStringAsFixed(4)}';
   }
 
   void _showUpdateDialog() {

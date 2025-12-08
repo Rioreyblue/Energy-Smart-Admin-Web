@@ -849,33 +849,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColor.primary.withAlpha(26),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Iconsax.profile_circle,
-                                color: AppColor.primary,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                customer['name'] ?? 'Unknown User',
-                                style: ResponsiveText.body(context).copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  color: AppColor.textPrimary,
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
-                            ),
-                          ],
+                        Text(
+                          customer['name'] ?? 'Unknown User',
+                          style: ResponsiveText.body(context).copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: AppColor.textPrimary,
+                            letterSpacing: 0.2,
+                          ),
                         ),
                         const SizedBox(height: 12),
                         const Divider(height: 1, thickness: 1),
@@ -1578,15 +1559,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+          margin: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           theme: pdfTheme,
           build: (pw.Context context) {
             return [
               // Header - Enhanced Design with Logo
               pw.Container(
                 padding: const pw.EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 14,
+                  horizontal: 14,
+                  vertical: 10,
                 ),
                 decoration: pw.BoxDecoration(
                   color: PdfColors.blueGrey800,
@@ -1600,14 +1581,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       child: pw.Row(
                         children: [
                           pw.Container(
-                            padding: const pw.EdgeInsets.all(8),
+                            padding: const pw.EdgeInsets.all(6),
                             decoration: pw.BoxDecoration(
                               color: PdfColors.grey200,
                               borderRadius: pw.BorderRadius.circular(8),
                             ),
-                            child: pw.Image(logoImage, width: 36, height: 36),
+                            child: pw.Image(logoImage, width: 28, height: 28),
                           ),
-                          pw.SizedBox(width: 12),
+                          pw.SizedBox(width: 10),
                           pw.Expanded(
                             child: pw.Column(
                               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -1615,7 +1596,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 pw.Text(
                                   'EnergySmart',
                                   style: pw.TextStyle(
-                                    fontSize: 20,
+                                    fontSize: 18,
                                     fontWeight: pw.FontWeight.bold,
                                     color: PdfColors.white,
                                     letterSpacing: 0.3,
@@ -1625,7 +1606,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 pw.Text(
                                   'Energy Consumption Invoice',
                                   style: pw.TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 9,
                                     color: PdfColors.grey200,
                                     fontWeight: pw.FontWeight.normal,
                                   ),
@@ -1703,7 +1684,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ],
                 ),
               ),
-              pw.SizedBox(height: 18),
+              pw.SizedBox(height: 10),
 
               // Customer Information - Enhanced Layout
               pw.Row(
@@ -1716,16 +1697,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         pw.Text(
                           'Bill To:',
                           style: pw.TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: pw.FontWeight.bold,
                           ),
                         ),
-                        pw.SizedBox(height: 12),
+                        pw.SizedBox(height: 8),
                         pw.Container(
-                          padding: const pw.EdgeInsets.all(14),
+                          padding: const pw.EdgeInsets.all(10),
                           decoration: pw.BoxDecoration(
                             color: PdfColors.white,
-                            borderRadius: pw.BorderRadius.circular(10),
+                            borderRadius: pw.BorderRadius.circular(8),
                             border: pw.Border.all(
                               color: PdfColors.grey300,
                               width: 1,
@@ -1734,43 +1715,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           child: pw.Column(
                             crossAxisAlignment: pw.CrossAxisAlignment.start,
                             children: [
-                              pw.Row(
-                                children: [
-                                  pw.Container(
-                                    padding: const pw.EdgeInsets.all(6),
-                                    decoration: pw.BoxDecoration(
-                                      color: PdfColors.blueGrey50,
-                                      borderRadius: pw.BorderRadius.circular(6),
-                                    ),
-                                    child: pw.Text(
-                                      '👤',
-                                      style: pw.TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                  pw.SizedBox(width: 8),
-                                  pw.Expanded(
-                                    child: pw.Text(
-                                      customer['name'] ?? 'Unknown User',
-                                      style: pw.TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: pw.FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              pw.Text(
+                                customer['name'] ?? 'Unknown User',
+                                style: pw.TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
                               ),
-                              pw.SizedBox(height: 12),
+                              pw.SizedBox(height: 8),
                               if ((customer['email'] as String?)?.isNotEmpty ??
                                   false) ...[
                                 pw.Text(
                                   'Email: ${customer['email']}',
                                   style: pw.TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 10,
                                     color: PdfColors.grey700,
                                     fontWeight: pw.FontWeight.normal,
                                   ),
                                 ),
-                                pw.SizedBox(height: 8),
+                                pw.SizedBox(height: 4),
                               ],
                               if ((customer['address'] as String?)
                                       ?.isNotEmpty ??
@@ -1778,12 +1741,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 pw.Text(
                                   'Address: ${customer['address']}',
                                   style: pw.TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 10,
                                     color: PdfColors.grey700,
                                     fontWeight: pw.FontWeight.normal,
                                   ),
                                 ),
-                                pw.SizedBox(height: 8),
+                                pw.SizedBox(height: 4),
                               ],
                               if ((customer['mobileNumber'] as String?)
                                       ?.isNotEmpty ??
@@ -1791,12 +1754,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 pw.Text(
                                   'Mobile: ${customer['mobileNumber']}',
                                   style: pw.TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 10,
                                     color: PdfColors.grey700,
                                     fontWeight: pw.FontWeight.normal,
                                   ),
                                 ),
-                                pw.SizedBox(height: 8),
+                                pw.SizedBox(height: 4),
                               ],
                               if ((customer['energyProvider'] as String?)
                                       ?.isNotEmpty ??
@@ -1804,12 +1767,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 pw.Text(
                                   'Energy Provider: ${customer['energyProvider']}',
                                   style: pw.TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 10,
                                     color: PdfColors.grey700,
                                     fontWeight: pw.FontWeight.normal,
                                   ),
                                 ),
-                                pw.SizedBox(height: 8),
+                                pw.SizedBox(height: 4),
                               ],
                               if ((customer['userType'] as String?)
                                       ?.isNotEmpty ??
@@ -1817,12 +1780,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 pw.Text(
                                   'User Type: ${customer['userType']}',
                                   style: pw.TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 10,
                                     color: PdfColors.grey700,
                                     fontWeight: pw.FontWeight.normal,
                                   ),
                                 ),
-                                pw.SizedBox(height: 8),
+                                pw.SizedBox(height: 4),
                               ],
                               if ((customer['applianceCount'] as int?) !=
                                   null) ...[
@@ -1846,7 +1809,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ],
                     ),
                   ),
-                  pw.SizedBox(width: 20),
+                  pw.SizedBox(width: 16),
                   pw.Expanded(
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -1854,15 +1817,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         pw.Text(
                           'Billing Period:',
                           style: pw.TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: pw.FontWeight.bold,
                           ),
                         ),
-                        pw.SizedBox(height: 12),
+                        pw.SizedBox(height: 8),
                         pw.Container(
                           padding: const pw.EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                            horizontal: 12,
+                            vertical: 10,
                           ),
                           decoration: pw.BoxDecoration(
                             color: PdfColors.white,
@@ -1885,21 +1848,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                 ],
               ),
-              pw.SizedBox(height: 18),
+              pw.SizedBox(height: 10),
 
               // Usage Summary Section
               pw.Text(
                 usagePeriod.isNotEmpty ? '$usagePeriod Usage' : 'Usage Summary',
                 style: pw.TextStyle(
-                  fontSize: 15,
+                  fontSize: 13,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
-              pw.SizedBox(height: 12),
+              pw.SizedBox(height: 8),
               pw.Container(
                 padding: const pw.EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
+                  horizontal: 12,
+                  vertical: 10,
                 ),
                 decoration: pw.BoxDecoration(
                   color: PdfColors.white,
@@ -1912,24 +1875,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       'Total kWh',
                       '${usageSummaryTotalKwh.toStringAsFixed(4)} kWh',
                     ),
-                    pw.SizedBox(height: 12),
+                    pw.SizedBox(height: 6),
                     pw.Divider(height: 1, thickness: 1),
-                    pw.SizedBox(height: 12),
+                    pw.SizedBox(height: 6),
                     _buildPDFUsageRow(
                       'Total Cost',
                       '$currencySymbol${usageSummaryTotalCost.toStringAsFixed(2)}',
                     ),
-                    pw.SizedBox(height: 12),
+                    pw.SizedBox(height: 6),
                     pw.Divider(height: 1, thickness: 1),
-                    pw.SizedBox(height: 12),
+                    pw.SizedBox(height: 6),
                     _buildPDFUsageRow('Status', usageSummaryStatus),
-                    pw.SizedBox(height: 12),
+                    pw.SizedBox(height: 6),
                     pw.Divider(height: 1, thickness: 1),
-                    pw.SizedBox(height: 12),
+                    pw.SizedBox(height: 6),
                     _buildPDFUsageRow('Date', _formatDate(usageSummaryDate)),
-                    pw.SizedBox(height: 12),
+                    pw.SizedBox(height: 6),
                     pw.Divider(height: 1, thickness: 1),
-                    pw.SizedBox(height: 12),
+                    pw.SizedBox(height: 6),
                     _buildPDFUsageRow(
                       'Last Updated',
                       _formatDateTime(usageSummaryLastUpdate),
@@ -1937,18 +1900,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ],
                 ),
               ),
-              pw.SizedBox(height: 20),
+              pw.SizedBox(height: 10),
 
               // Appliances Summary Table
               if (appliances.isNotEmpty) ...[
                 pw.Text(
                   'Appliances Summary',
                   style: pw.TextStyle(
-                    fontSize: 15,
+                    fontSize: 13,
                     fontWeight: pw.FontWeight.bold,
                   ),
                 ),
-                pw.SizedBox(height: 12),
+                pw.SizedBox(height: 8),
                 pw.Table(
                   border: pw.TableBorder.all(
                     color: PdfColors.grey300,
@@ -2008,22 +1971,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     child: pw.Text(
                       'Additional appliances not shown (total ${applianceItems.length}).',
                       style: pw.TextStyle(
-                        fontSize: 9,
+                        fontSize: 8,
                         color: PdfColors.grey600,
                       ),
                     ),
                   ),
-                pw.SizedBox(height: 20),
+                pw.SizedBox(height: 10),
 
                 // Appliances Breakdown - Enhanced Table
                 pw.Text(
                   'Appliances Breakdown',
                   style: pw.TextStyle(
-                    fontSize: 15,
+                    fontSize: 13,
                     fontWeight: pw.FontWeight.bold,
                   ),
                 ),
-                pw.SizedBox(height: 12),
+                pw.SizedBox(height: 8),
                 pw.Table(
                   border: pw.TableBorder.all(
                     color: PdfColors.grey300,
@@ -2088,14 +2051,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     ),
                   ],
                 ),
-                pw.SizedBox(height: 20),
+                pw.SizedBox(height: 10),
               ],
 
               // Energy Summary
               pw.Container(
                 padding: const pw.EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                  horizontal: 12,
+                  vertical: 10,
                 ),
                 decoration: pw.BoxDecoration(
                   color: PdfColors.white,
@@ -2125,14 +2088,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ),
                       ],
                     ),
-                    pw.SizedBox(height: 8),
+                    pw.SizedBox(height: 6),
                     pw.Row(
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                       children: [
                         pw.Text(
                           'Power Rate',
                           style: pw.TextStyle(
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: pw.FontWeight.bold,
                             color: PdfColors.blueGrey700,
                           ),
@@ -2140,17 +2103,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         pw.Text(
                           '$currencySymbol${(energy['powerRate'] as double).toStringAsFixed(3)}/kWh',
                           style: pw.TextStyle(
-                            fontSize: 11,
+                            fontSize: 10,
                             color: PdfColors.blueGrey700,
                           ),
                         ),
                       ],
                     ),
-                    pw.SizedBox(height: 10),
+                    pw.SizedBox(height: 8),
                     pw.Container(
                       padding: const pw.EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                        horizontal: 12,
+                        vertical: 10,
                       ),
                       decoration: pw.BoxDecoration(
                         color: PdfColors.blueGrey700,
@@ -2181,11 +2144,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ],
                 ),
               ),
-              pw.SizedBox(height: 20),
+              pw.SizedBox(height: 10),
 
               // Footer
               pw.Container(
-                padding: const pw.EdgeInsets.all(12),
+                padding: const pw.EdgeInsets.all(8),
                 decoration: pw.BoxDecoration(
                   color: PdfColors.grey100,
                   borderRadius: pw.BorderRadius.circular(4),
@@ -2195,15 +2158,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     pw.Text(
                       'Thank you for using EnergySmart!',
                       style: pw.TextStyle(
-                        fontSize: 11,
+                        fontSize: 9,
                         fontWeight: pw.FontWeight.bold,
                       ),
                     ),
-                    pw.SizedBox(height: 4),
+                    pw.SizedBox(height: 2),
                     pw.Text(
                       'For inquiries, please contact our support team.',
                       style: pw.TextStyle(
-                        fontSize: 10,
+                        fontSize: 8,
                         color: PdfColors.grey700,
                       ),
                       textAlign: pw.TextAlign.center,
@@ -2247,12 +2210,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
     bool alignRight = false,
   }) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.all(10),
+      padding: const pw.EdgeInsets.all(6),
       child: pw.Text(
         text,
         textAlign: alignRight ? pw.TextAlign.right : pw.TextAlign.left,
         style: pw.TextStyle(
-          fontSize: isHeader ? 13 : 12,
+          fontSize: isHeader ? 11 : 10,
           fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
           color: isHeader ? PdfColors.grey800 : PdfColors.grey700,
         ),
@@ -2267,7 +2230,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         pw.Text(
           '$label:',
           style: pw.TextStyle(
-            fontSize: 12,
+            fontSize: 10,
             fontWeight: pw.FontWeight.bold,
             color: PdfColors.grey700,
           ),
@@ -2275,7 +2238,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         pw.Text(
           value,
           style: pw.TextStyle(
-            fontSize: 12,
+            fontSize: 10,
             fontWeight: pw.FontWeight.bold,
             color: PdfColors.grey800,
           ),

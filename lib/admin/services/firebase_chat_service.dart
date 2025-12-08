@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../models/firebase_chat_models.dart';
 import 'onesignal_service.dart';
 import 'cloudinary_service.dart';
+import 'admin_notification_service.dart';
 import '../../utils/logger.dart';
 
 class FirebaseChatService {
@@ -22,6 +23,11 @@ class FirebaseChatService {
   final Uuid _uuid = const Uuid();
   final OneSignalService _oneSignalService = OneSignalService();
   final CloudinaryService _cloudinaryService = CloudinaryService();
+  final AdminNotificationService _notificationService =
+      AdminNotificationService();
+
+  // Track notified messages to avoid duplicates
+  final Set<String> _notifiedMessageIds = {};
 
   // Stream controllers
   final StreamController<List<FirebaseChat>> _chatsController =
