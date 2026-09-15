@@ -1,45 +1,90 @@
+```markdown
 # EnergySmart Admin Dashboard
 
-A comprehensive, responsive admin dashboard built with Flutter for managing the EnergySmart system. This dashboard provides real-time monitoring, user management, analytics, and system configuration capabilities.
+A web-based administration portal built with **Flutter Web** and **Firebase** for central management, user administration, and system-wide analytics of the EnergySmart IoT ecosystem.
 
-## 🚀 Features
+---
 
-### 🔐 Authentication & Security
-- **Secure Login**: Firebase Authentication with email/password
-- **Role-Based Access**: Admin and Super Admin roles with granular permissions
-- **Session Management**: Automatic session handling and secure logout
-- **Password Reset**: Email-based password recovery
-- **Permission System**: Feature-level access control
+## Capstone Project Overview
 
-### 📊 Dashboard
-- **Real-time Statistics**: Total users, active devices, energy usage, power rates
-- **Interactive Charts**: Energy usage trends, hourly patterns, device comparisons
-- **Summary Cards**: Key metrics with trend indicators and quick actions
-- **Responsive Design**: Optimized for desktop, tablet, and mobile devices
+**Project Title:** EnergySmart Admin Portal: Centralized Management Dashboard for Smart Energy Systems
 
-### 👥 User Management
-- **User List**: Comprehensive user data table with search and filtering
-- **Status Management**: Activate/suspend user accounts
-- **User Details**: Detailed user information and activity tracking
-- **Bulk Actions**: Export data and perform bulk operations
+**Abstract / Description:**
+This web application provides system administrators with real-time infrastructure oversight for the EnergySmart platform. Built exclusively for web targets using Flutter Web, it centralizes user lifecycle management, dynamic electricity rate configuration, and network-wide energy consumption analytics. The platform bridges Firebase services with responsive web data visualizations to streamline system governance across modern desktop and tablet web browsers.
 
-### 📈 Analytics & Reports
-- **Usage Analytics**: Detailed energy consumption patterns
-- **Device Comparison**: Energy usage breakdown by device type
-- **Hourly Patterns**: Peak usage identification and optimization insights
-- **Report Generation**: Automated and manual report creation
-- **Data Export**: CSV and PDF export capabilities
+---
 
-### ⚙️ System Settings
-- **Energy Configuration**: Power rate and threshold settings
-- **Notification Settings**: Alert preferences and frequency
-- **Report Configuration**: Automated report scheduling
-- **System Information**: Version details and status monitoring
+## Features
 
-## 🏗️ Architecture
+* 📊 System Analytics – Track total active users, connected hardware, aggregate load, and network metrics in real time
+* 📈 Interactive Visualizations – Analyze consumption trends, peak hourly usage, and device load patterns using dynamic charts
+* 👥 User Administration – Manage user accounts, role-based access control (Admin/Super Admin), and account statuses
+* ⚙️ System Configuration – Dynamically update utility electricity rates, warning thresholds, and notification schedules
+* 📱 Web-Responsive Layout – Optimized navigation breakpoints tailored for desktop, tablet, and web viewports
 
-### Project Structure
+---
+
+## Tech Stack
+
+| Technology | Purpose |
+| :--- | :--- |
+| Flutter Web (3.x+) | Web application framework |
+| Dart | Programming language |
+| Web Browsers | Target platforms (Chrome, Firefox, Edge, Safari) |
+| Firebase Auth / Firestore | User authentication and real-time database |
+| FL Chart / Syncfusion | Advanced web data visualization |
+
+---
+
+## Prerequisites
+
+| Tool | Version |
+| :--- | :--- |
+| Flutter SDK | 3.7.2+ |
+| Dart SDK | Included with Flutter |
+| Google Chrome | Latest |
+| Firebase Console | Web app integration configured |
+
+> ⚠️ **Web Configuration Note:**
+> Ensure Flutter Web support is enabled on your machine before running:
+> ```bash
+> flutter config --enable-web
+> ```
+> Verify your setup by executing `flutter doctor`.
+
+---
+
+## Setup Instructions
+
+### 1. Clone the repository
+
+```bash
+git clone [https://github.com/Rioreyblue/Energy-Smart-Admin.git](https://github.com/Rioreyblue/Energy-Smart-Admin.git)
+cd Energy-Smart-Admin
+
 ```
+
+### 2. Install dependencies
+
+```bash
+flutter pub get
+
+```
+
+### 3. Launch the web application
+
+Run locally on Google Chrome:
+
+```bash
+flutter run -d chrome
+
+```
+
+---
+
+## Project Structure
+
+```text
 lib/
 ├── admin/
 │   ├── auth/              # Authentication system
@@ -73,139 +118,14 @@ lib/
 │   └── constant.dart      # App constants and themes
 ├── main.dart              # App entry point
 └── routes.dart            # Navigation routing
+
 ```
 
-### Key Components
-
-#### 🎨 UI Components
-- **SidebarMenu**: Collapsible navigation with smooth animations
-- **TopNavbar**: Search, notifications, and user profile management
-- **SummaryCard**: Reusable metric cards with trend indicators
-- **ChartOverview**: Interactive charts using fl_chart
-- **DataTableView**: Responsive data tables with sorting and filtering
-
-#### 📱 Responsive Design
-- **ResponsiveLayout**: Adaptive layouts for different screen sizes
-- **ResponsiveHelper**: Utility functions for responsive behavior
-- **Breakpoints**: Mobile (600px), Tablet (900px), Desktop (1200px+)
-
-#### 🎯 State Management
-- **Provider**: For state management and data flow
-- **MockDataService**: Placeholder data service for development
-- **AuthService**: Firebase authentication integration
-
-## 🛠️ Dependencies
-
-### Core Dependencies
-- **flutter**: SDK
-- **firebase_core**: Firebase integration
-- **firebase_auth**: Authentication
-- **cloud_firestore**: Database
-- **provider**: State management
-
-### UI & UX
-- **iconsax**: Modern icon library
-- **flutter_animate**: Smooth animations
-- **google_fonts**: Typography
-- **lottie**: Lottie animations
-
-### Charts & Analytics
-- **fl_chart**: Interactive charts
-- **syncfusion_flutter_charts**: Advanced charting
-
-### Utilities
-- **shared_preferences**: Local storage
-- **url_launcher**: External links
-- **fluttertoast**: Toast notifications
-- **awesome_snackbar_content**: Enhanced snackbars
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Flutter SDK (3.7.2+)
-- Dart SDK
-- Firebase project setup
-- Web browser (for web development)
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd energy_smart_admin
-   ```
-
-2. **Install dependencies**
-   ```bash
-   flutter pub get
-   ```
-
-3. **Configure Firebase**
-   - Create a Firebase project
-   - Enable Authentication and Firestore
-   - Add your Firebase configuration files
-
-4. **Run the application**
-   ```bash
-   # For web development
-   flutter run -d chrome
-   
-   # For mobile development
-   flutter run
-   ```
-
-## 🔧 Configuration
-
-### Environment Setup
-1. **Firebase Configuration**
-   - Add `google-services.json` (Android)
-   - Add `GoogleService-Info.plist` (iOS)
-   - Configure Firebase for web
-
-2. **API Configuration**
-   - Update API endpoints in services
-   - Configure authentication providers
-   - Set up data models
-
-## 🚀 Future Enhancements
-
-### Phase 1: Database Integration
-- [ ] Replace mock data with Firestore
-- [ ] Real-time data synchronization
-- [ ] User role-based access control
-- [ ] Advanced filtering and search
-
-### Phase 2: Advanced Features
-- [ ] Real-time notifications
-- [ ] Advanced analytics dashboard
-- [ ] Bulk operations
-- [ ] Data export functionality
-- [ ] System monitoring alerts
-
-### Phase 3: Performance & Scalability
-- [ ] Caching strategies
-- [ ] Performance optimization
-- [ ] Load testing and optimization
-
-
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the repository
-- Contact the developer: franciscorey8383@gmail.com
-- Check the documentation
-
-## 📊 Performance Metrics
-
-- **Bundle Size**: Optimized for web deployment
-- **Load Time**: < 3 seconds on average
-- **Responsiveness**: 60fps animations
-- **Accessibility**: WCAG 2.1 compliant
-
 ---
-## credentials
 
-- Message me at:
-- franciscorey8383@gmail.com
+## Support & Inquiries
 
-**Built with ❤️ using Flutter and Firebase**
+For questions, access requests, or administrative credentials:
+
+* **Developer Email:** franciscorey8383@gmail.com
+* **Issues:** Open an issue directly in the repository
