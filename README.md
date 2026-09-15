@@ -154,32 +154,6 @@ lib/
    flutter run
    ```
 
-### Authentication Setup
-
-1. **Firebase Configuration**
-   - Enable Email/Password authentication in Firebase Console
-   - Set up Firestore security rules (see `AUTHENTICATION_README.md`)
-   - Update Firebase credentials in `lib/firebase_options.dart`
-
-2. **Create First Admin**
-   - Register through the app interface (if you have super admin access)
-   - Or manually add to Firestore `/admins/{userId}` collection
-
-3. **Access the Dashboard**
-   - Navigate to the admin dashboard
-   - Login with your admin credentials
-   - Access all features based on your role and permissions
-
-## 🎨 Design System
-
-### Color Palette
-- **Primary**: Deep Navy Blue (#2C3E50)
-- **Accent Green**: Energy Green (#27AE60)
-- **Accent Red**: Alert Red (#E74C3C)
-- **Surface**: Soft Light Gray (#F5F7FA)
-- **Text Primary**: Dark Gray (#2C3E50)
-- **Text Secondary**: Medium Gray (#7F8C8D)
-
 ## 🔧 Configuration
 
 ### Environment Setup
@@ -192,12 +166,6 @@ lib/
    - Update API endpoints in services
    - Configure authentication providers
    - Set up data models
-
-### Customization
-- **Themes**: Modify `constants/constant.dart`
-- **Colors**: Update `AppColor` class
-- **Typography**: Adjust `ResponsiveText` class
-- **Spacing**: Modify `Insets` class
 
 ## 🚀 Future Enhancements
 
@@ -216,21 +184,9 @@ lib/
 
 ### Phase 3: Performance & Scalability
 - [ ] Caching strategies
-- [ ] Offline support
 - [ ] Performance optimization
 - [ ] Load testing and optimization
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 🆘 Support
 
