@@ -269,5 +269,7 @@ For support and questions:
 - **Accessibility**: WCAG 2.1 compliant
 
 ---
-
+## credentials
+Message me at:
+franciscorey8383@gmail.com
 **Built with ❤️ using Flutter and Firebase**
