@@ -1,15 +1,15 @@
 ```markdown
 # EnergySmart Admin Dashboard
 
-A web-based administration portal built with **Flutter Web** and **Firebase** for central management, user administration, and system-wide analytics of the EnergySmart IoT ecosystem.
+A web-based administration portal built with Flutter Web and Firebase for central management, user administration, and system-wide analytics of the EnergySmart IoT ecosystem.
 
 ---
 
 ## Capstone Project Overview
 
-**Project Title:** EnergySmart Admin Portal: Centralized Management Dashboard for Smart Energy Systems
+Project Title: EnergySmart Admin Portal: Centralized Management Dashboard for Smart Energy Systems
 
-**Abstract / Description:**
+Abstract / Description:**
 This web application provides system administrators with real-time infrastructure oversight for the EnergySmart platform. Built exclusively for web targets using Flutter Web, it centralizes user lifecycle management, dynamic electricity rate configuration, and network-wide energy consumption analytics. The platform bridges Firebase services with responsive web data visualizations to streamline system governance across modern desktop and tablet web browsers.
 
 ---
