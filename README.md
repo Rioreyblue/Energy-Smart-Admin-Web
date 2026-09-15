@@ -1,16 +1,6 @@
-```markdown
-# EnergySmart Admin Dashboard
+# EnergySmart Admin Dashboard – System Management Portal
 
-A web-based administration portal built with Flutter Web and Firebase for central management, user administration, and system-wide analytics of the EnergySmart IoT ecosystem.
-
----
-
-## Capstone Project Overview
-
-Project Title: EnergySmart Admin Portal: Centralized Management Dashboard for Smart Energy Systems
-
-Abstract / Description:**
-This web application provides system administrators with real-time infrastructure oversight for the EnergySmart platform. Built exclusively for web targets using Flutter Web, it centralizes user lifecycle management, dynamic electricity rate configuration, and network-wide energy consumption analytics. The platform bridges Firebase services with responsive web data visualizations to streamline system governance across modern desktop and tablet web browsers.
+A web-based administration and telemetry management portal built with **Flutter Web**, **Dart**, and **Firebase** for central management, user administration, and real-time energy analytics of the EnergySmart IoT ecosystem.
 
 ---
 
@@ -27,10 +17,10 @@ This web application provides system administrators with real-time infrastructur
 ## Tech Stack
 
 | Technology | Purpose |
-| :--- | :--- |
-| Flutter Web (3.x+) | Web application framework |
+| --- | --- |
+| Flutter Web (3.x+) | Single-page web application framework |
 | Dart | Programming language |
-| Web Browsers | Target platforms (Chrome, Firefox, Edge, Safari) |
+| Web Browsers | Target deployment platforms (Chrome, Firefox, Edge, Safari) |
 | Firebase Auth / Firestore | User authentication and real-time database |
 | FL Chart / Syncfusion | Advanced web data visualization |
 
@@ -39,18 +29,23 @@ This web application provides system administrators with real-time infrastructur
 ## Prerequisites
 
 | Tool | Version |
-| :--- | :--- |
+| --- | --- |
 | Flutter SDK | 3.7.2+ |
-| Dart SDK | Included with Flutter |
-| Google Chrome | Latest |
+| Dart | Included with Flutter |
+| Google Chrome / Modern Browser | Latest |
 | Firebase Console | Web app integration configured |
 
-> ⚠️ **Web Configuration Note:**
-> Ensure Flutter Web support is enabled on your machine before running:
+> ⚠️ **Important Environment Setup:**
+> Before attempting to run this application, ensure that **Flutter Web** support is fully enabled in your local environment.
+> Verify that all required dependencies and web toolchain components pass system checks by running:
 > ```bash
 > flutter config --enable-web
+> flutter doctor
+> 
 > ```
-> Verify your setup by executing `flutter doctor`.
+> 
+> 
+> Fix any missing checks until all core items display a checkmark (`[✓]`).
 
 ---
 
@@ -59,26 +54,30 @@ This web application provides system administrators with real-time infrastructur
 ### 1. Clone the repository
 
 ```bash
-git clone [https://github.com/Rioreyblue/Energy-Smart-Admin.git](https://github.com/Rioreyblue/Energy-Smart-Admin.git)
-cd Energy-Smart-Admin
+git clone https://github.com/Rioreyblue/Energy-Smart-Admin.git
 
 ```
 
 ### 2. Install dependencies
 
+Navigate to the project directory and fetch packages:
+
 ```bash
+cd Energy-Smart-Admin
 flutter pub get
 
 ```
 
-### 3. Launch the web application
+### 3. Launch the application
 
-Run locally on Google Chrome:
+Run locally on Google Chrome (or your default browser):
 
 ```bash
 flutter run -d chrome
 
 ```
+
+> 💡 Make sure your web browser is installed and configured before executing `flutter run -d chrome`.
 
 ---
 
