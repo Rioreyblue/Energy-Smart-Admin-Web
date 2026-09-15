@@ -180,28 +180,6 @@ lib/
 - **Text Primary**: Dark Gray (#2C3E50)
 - **Text Secondary**: Medium Gray (#7F8C8D)
 
-### Typography
-- **Headline**: 28px, Bold
-- **Title**: 20px, Bold
-- **Body**: 14px, Regular
-- **Caption**: 12px, Medium
-- **Label**: 12px, Medium
-
-### Spacing
-- **Base Unit**: 4px
-- **Small**: 8px
-- **Medium**: 12px
-- **Large**: 16px
-- **Extra Large**: 20px
-- **XXL**: 24px
-
-## 📱 Responsive Breakpoints
-
-- **Mobile**: < 600px
-- **Tablet**: 600px - 900px
-- **Desktop**: 900px - 1200px
-- **Large Desktop**: > 1200px
-
 ## 🔧 Configuration
 
 ### Environment Setup
@@ -258,7 +236,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 For support and questions:
 - Create an issue in the repository
-- Contact the development team
+- Contact the developer: franciscorey8383@gmail.com
 - Check the documentation
 
 ## 📊 Performance Metrics
@@ -270,6 +248,8 @@ For support and questions:
 
 ---
 ## credentials
-Message me at:
-franciscorey8383@gmail.com
+
+- Message me at:
+- franciscorey8383@gmail.com
+
 **Built with ❤️ using Flutter and Firebase**
